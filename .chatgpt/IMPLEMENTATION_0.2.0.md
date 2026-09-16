@@ -73,3 +73,25 @@ now checks the libusb DLL import and architecture, includes the USB setup guide
 and matching libusb source/license, and exercises libusb enumeration with no
 programmer attached on hosted Windows runners. Hosted build results follow
 separately; these checks do not validate physical TL866CS operations.
+
+## Corrected transport: hosted validation passed
+
+[Run 35074949228](https://github.com/hirofumi-iwasaki/musha-ic-prog/actions/runs/35074949228)
+passed all five builds and both Ubuntu 24.04 checks for commit
+`543ce2e0246863d0ace3a5fa40218b91899ad5a6`. Release upload was skipped as intended.
+All targets passed analysis and 60 Flutter tests. Windows x64/ARM64 passed
+libusb DLL import/architecture checks, verbose no-device USB enumeration,
+Unicode database lookup, SetupAPI JSON and GUI launch/close checks. The libusb
+MSVC operand-cast patch preserves the USB request value.
+
+Downloaded Windows x64 and ARM64 archives independently passed all 254 and
+253 file checksums respectively. Both contain the native libusb DLL, WinUSB
+setup instructions, corresponding source archive/patch, licenses and a clean
+source revision manifest. The duplicate PR run encountered a transient zlib
+download hash mismatch; the check rejected that download and the job was
+retried without changing the pinned hash. The successful branch run provides
+the complete five-archive evaluation set.
+
+The Release remains withdrawn and the old v0.2.0 tag remains unchanged. Windows
+physical TL866CS recognition and approved IC read/compare still require user
+acceptance; CI is not hardware evidence.

@@ -125,3 +125,8 @@ Accepted design and detailed gates: [CROSS_PLATFORM_0.2.0.md](CROSS_PLATFORM_0.2
 Implementation and automated build validation are complete at version `0.2.0+2`. Native Windows and Linux runners, shared platform contracts, packaging scripts and the five-target Actions matrix are implemented. Follow the [implementation record](IMPLEMENTATION_0.2.0.md) for build evidence and outstanding hardware gates. The initial v0.2.0 Release was subsequently published and withdrawn after the Windows transport issue (D30); its tag is retained.
 
 Automated result: [run 35069146880](https://github.com/hirofumi-iwasaki/musha-ic-prog/actions/runs/35069146880), implementation commit `e383f61`, all five builds plus both Ubuntu 24.04 runtime checks passed. P3/P4 are deliberately not marked complete by CI results.
+
+Windows transport correction D30: [run 35074949228](https://github.com/hirofumi-iwasaki/musha-ic-prog/actions/runs/35074949228)
+passed all five corrected builds and both Ubuntu 24.04 checks at `543ce2e`.
+WinUSB/libusb physical acceptance remains open. The withdrawn Release is not
+republished; Windows evaluation artifacts include the one-time setup guide.
