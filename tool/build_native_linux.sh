@@ -52,7 +52,11 @@ for artifact in "$prefix/native/minipro" "$prefix/native/tl866_probe" "$prefix/l
   [[ -e $artifact ]] || { echo "Missing $artifact" >&2; exit 1; }; readelf -h "$artifact" | grep -Fq "Machine:                           $machine" || { echo "Wrong ELF architecture: $artifact" >&2; exit 1; }; ldd "$artifact" | grep -q 'not found' && { echo "Unresolved dependency: $artifact" >&2; exit 1; } || true
 done
 for helper in "$prefix/native/minipro" "$prefix/native/tl866_probe"; do readelf -d "$helper" | grep -Eq 'RUNPATH.*\$ORIGIN/../lib' || { echo "Missing RPATH: $helper" >&2; exit 1; }; done
-readelf -d "$prefix/native/minipro" "$prefix/native/tl866_probe" | grep -Eq "$project_dir|$HOME" && { echo 'Developer path in helper.' >&2; exit 1; } || true
+dynamic_entries=$(readelf -d "$prefix/native/minipro" "$prefix/native/tl866_probe" | awk '/\((NEEDED|RPATH|RUNPATH)\)/')
+if grep -Fq "$project_dir" <<<"$dynamic_entries" || grep -Fq "$HOME" <<<"$dynamic_entries"; then
+  echo 'Developer path in helper dynamic entries.' >&2
+  exit 1
+fi
 cat > "$prefix/BUILD-MANIFEST.txt" <<EOF
 target_os=linux
 target_architecture=$architecture

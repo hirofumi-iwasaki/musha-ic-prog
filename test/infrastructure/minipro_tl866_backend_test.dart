@@ -52,6 +52,10 @@ Future<Directory> _bundle() async {
   return root;
 }
 
+// Bus/address JSON is the descriptor-probe contract used on macOS and Linux.
+// Keep those fixtures independent of the host that runs this test suite.
+const _descriptorProbePlatform = 'linux';
+
 void main() {
   test(
     'scan accepts exactly one TL866CS with a parsed firmware identity',
@@ -73,6 +77,7 @@ void main() {
           logicic: '${root.path}/logicic.xml',
         ),
         runner: runner,
+        operatingSystem: _descriptorProbePlatform,
       );
       final result = await backend.scan();
       expect(result, hasLength(1));
@@ -113,6 +118,7 @@ void main() {
           logicic: '${root.path}/logicic.xml',
         ),
         runner: runner,
+        operatingSystem: _descriptorProbePlatform,
       );
       expect(await backend.scan(), isEmpty);
       expect(backend.discoveryReason, contains('More than one'));
@@ -132,6 +138,7 @@ void main() {
         logicic: '${root.path}/logicic.xml',
       ),
       runner: runner,
+      operatingSystem: _descriptorProbePlatform,
     );
     const connection = ProgrammerConnection(
       backendId: 'minipro-tl866cs',
@@ -335,6 +342,7 @@ Future<OperationResult> _executeScripted(
       logicic: '${root.path}/logicic.xml',
     ),
     runner: runner,
+    operatingSystem: _descriptorProbePlatform,
   );
   final snapshot = input == null
       ? null
@@ -464,6 +472,7 @@ void operationContractTests() {
         logicic: '${root.path}/logicic.xml',
       ),
       runner: runner,
+      operatingSystem: _descriptorProbePlatform,
     );
     final handle = backend.execute(
       OperationPlan(

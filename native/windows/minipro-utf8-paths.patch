@@ -1,9 +1,11 @@
 diff --git a/Makefile b/Makefile
 --- a/Makefile
 +++ b/Makefile
-@@ -103,6 +103,7 @@
+@@ -103,6 +103,9 @@
  override LIBS += -lsetupapi \
                   -lwinusb \
++				 -lshlwapi \
++				 -lshell32 \
  				 -lz
 +override CPPFLAGS += -include src/win_utf8_paths.h
  endif
