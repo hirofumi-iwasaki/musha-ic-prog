@@ -1,0 +1,13 @@
+# Reproducible base for the local GPL-3.0-or-later MiniPro fork overlay.
+[upstream]
+project = "minipro"
+url = "https://gitlab.com/DavidGriffith/minipro.git"
+commit = "cae74c0607077d6260b24995f5e4c0d0b66a6a2e"
+license = "GPL-3.0-or-later"
+
+[materialization]
+script = "tool/materialize_minipro_sram.sh"
+default_output = ".tooling/minipro-sram"
+git_metadata = false
+downloads_algorithms = false
+overlay = ["sram/sram_test.c", "sram/sram_test.h"]
