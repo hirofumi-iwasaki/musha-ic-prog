@@ -6,7 +6,7 @@ Repository: [hirofumi-iwasaki/musha-ic-prog](https://github.com/hirofumi-iwasaki
 
 Version 0.2.0 extends the TL866CS application to five native targets: macOS ARM64, Windows x64/ARM64 and Ubuntu x64/ARM64. The ports are being validated; CI compilation and physical USB acceptance are tracked separately. The Dart / Flutter architecture allows additional programmer backends, such as the XGecu T56, across all supported operating systems. The viewer follows the presentation approach of [Mushagaeshi Binary Editor](https://github.com/hirofumi-iwasaki/musha-bin-editor).
 
-## v0.2.0 development status
+## v0.2.0 release status
 
 The five-platform implementation is on `release/0.2.0`. All five builds and the Ubuntu 24.04 launch checks passed in [GitHub Actions](https://github.com/hirofumi-iwasaki/musha-ic-prog/actions/runs/35069146880). See the [implementation record](.chatgpt/IMPLEMENTATION_0.2.0.md) for the tested commit and remaining physical acceptance. Windows uses the pinned minipro WinUSB backend; Ubuntu and macOS use libusb. Windows driver binding and Ubuntu USB access rules are separate setup steps. See the [port design](.chatgpt/CROSS_PLATFORM_0.2.0.md) for the acceptance matrix. No new device families or physical SRAM/logic tests are enabled by this port.
 
@@ -45,7 +45,7 @@ Select **Open BIN**, or drop one file onto the left **Input BIN** pane. Any file
 
 ## Run the Windows or Ubuntu app
 
-Download the archive matching your OS and processor from the Actions build artifacts during development. Extract the complete directory; keep the executable beside its bundled libraries, `native/` and `resources/` directories.
+Download the archive matching your OS and processor from [Releases](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.2.0). Extract the complete directory; keep the executable beside its bundled libraries, `native/` and `resources/` directories.
 
 - Windows: open `mushagaeshi_ic_programmer.exe`. USB operations require the TL866CS WinUSB driver and the interface GUID described in the [Windows setup notes](native/windows/README.md). A native ARM64 build does not validate the driver binding by itself.
 - Ubuntu: run `mushagaeshi_ic_programmer` from an extracted desktop bundle. Install the distribution's GTK 3, EGL/OpenGL and LZMA runtime libraries (`libgtk-3-0`, `libegl1`, `libgles2`, `libgl1-mesa-dri`, `liblzma5`) and follow the [USB access instructions](linux/udev/README.md) if permission is denied. Do not run the application as root.
