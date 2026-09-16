@@ -6,7 +6,7 @@ set -euo pipefail
 project_dir=${0:A:h:h}
 output_dir=${1:-"$project_dir/dist"}
 app_name='Mushagaeshi IC Programmer.app'
-archive_name='musha-ic-programmer-macos-arm64.zip'
+archive_name='musha-ic-prog-macos-arm64.zip'
 stage_dir=''
 materialized_minipro=''
 
