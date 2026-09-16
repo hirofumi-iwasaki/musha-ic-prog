@@ -126,6 +126,13 @@ void main() {
     expect(subject.selectedVendor, isNull);
     subject.dispose();
   });
+
+  test('only TL866CS is available for selection', () {
+    final subject = controller();
+
+    expect(subject.availableProgrammers, [ProgrammerOption.tl866cs]);
+    subject.dispose();
+  });
 }
 
 final class _ThrowingMockBackend implements ProgrammerBackend {

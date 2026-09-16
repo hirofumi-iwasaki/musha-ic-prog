@@ -67,9 +67,10 @@ final class ProgrammerController extends ChangeNotifier {
   bool get needsProgramConfirmation =>
       phase == OperationPhase.awaitingConfirmation;
   bool get isConnected => connectionStatus == ConnectionStatus.ready;
+
+  /// Only TL866CS is selectable in the current release.
   List<ProgrammerOption> get availableProgrammers => const [
     ProgrammerOption.tl866cs,
-    ...ProgrammerOption.futureOptions,
   ];
   List<String> get availableVendors => catalog.vendorsFor(selectedProgrammer);
   int get selectedVendorDeviceCount => catalog.deviceCount(
