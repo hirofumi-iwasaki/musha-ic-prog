@@ -46,9 +46,15 @@ $miniproOutput = & $miniproSmoke --help 2>&1
 if ($LASTEXITCODE -ne 1 -or (($miniproOutput -join "`n") -notmatch 'Usage:')) {
   throw 'Packaged MiniPro offline help smoke check failed.'
 }
-$connectionOutput = & $miniproSmoke -k 2>&1
-if ($env:GITHUB_ACTIONS -and ($LASTEXITCODE -eq 0 -or (($connectionOutput -join "`n") -notmatch 'No programmer found\.'))) {
-  throw 'CI MiniPro libusb enumeration smoke check did not report the expected absent programmer.'
+# -k deliberately hides libusb initialization errors and always exits zero.
+# -V reports those errors, enumerates USB, then validates the database paths.
+if ($env:GITHUB_ACTIONS) {
+  $connectionOutput = & $miniproSmoke --infoic (Join-Path $packageResources 'infoic.xml') --logicic (Join-Path $packageResources 'logicic.xml') -V 2>&1
+  $connectionExit = $LASTEXITCODE
+  $connectionText = $connectionOutput -join "`n"
+  if ($connectionExit -ne 0 -or $connectionText -notmatch 'No programmer found\.') {
+    throw "CI MiniPro libusb enumeration failed (exit $connectionExit): $connectionText"
+  }
 }
 # Exercise UTF-16 command-line -> UTF-8 -> UTF-16 file access without USB I/O.
 $unicodeDatabase = Join-Path ([IO.Path]::GetTempPath()) ('musha 日本語 path ' + [guid]::NewGuid().ToString('N'))
