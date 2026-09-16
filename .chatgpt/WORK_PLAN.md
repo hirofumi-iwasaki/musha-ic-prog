@@ -100,3 +100,10 @@ CIでformat確認、analyze、test、macOS release buildを行う。
 
 [MINIPRO_FORK_PLAN.md](MINIPRO_FORK_PLAN.md)に従いC試験エンジン、mock操作、Flutter表示を並行実装する。
 実機依存M0は未達のまま記録し、通信なしで検証できる実装を進める。
+
+## 実機接続開始
+
+ユーザーがTL866CSをMacへ接続し、実機動作への切替を指示。
+future表示削除のcommit/push完了後にD21–D23に従い、同梱helper、USB接続、
+メモリー操作、実機UIを実装する。本体識別の合格とICごとの読出し・書込み合格は別記録とする。
+IC型番が未確定の間は本体識別のみ実行する。M0のIC試験・配布対象OS全数確認は別途残る。

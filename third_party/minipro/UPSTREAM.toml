@@ -3,6 +3,8 @@
 project = "minipro"
 url = "https://gitlab.com/DavidGriffith/minipro.git"
 commit = "cae74c0607077d6260b24995f5e4c0d0b66a6a2e"
+archive_url = "https://gitlab.com/DavidGriffith/minipro/-/archive/cae74c0607077d6260b24995f5e4c0d0b66a6a2e/minipro-cae74c0607077d6260b24995f5e4c0d0b66a6a2e.tar.gz"
+archive_sha256 = "6363acb0b69f6038ff7a64a751bd2b4fa671debde487c83fd4c5c876c95175af"
 license = "GPL-3.0-or-later"
 
 [materialization]

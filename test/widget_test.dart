@@ -20,8 +20,8 @@ void main() {
     });
     await tester.pumpWidget(MyApp(controller: controller));
 
-    expect(find.text('SIMULATION MODE'), findsOneWidget);
-    expect(find.text('Connect simulation'), findsOneWidget);
+    expect(find.text('SIMULATION MODE'), findsNothing);
+    expect(find.text('Refresh simulation'), findsOneWidget);
     expect(find.text('Open BIN'), findsOneWidget);
   });
 }

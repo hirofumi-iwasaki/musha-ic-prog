@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import 'dart:async' show unawaited;
+import 'dart:async' show Completer, unawaited;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mushagaeshi_ic_programmer/application/controllers/programmer_controller.dart';
@@ -127,12 +127,196 @@ void main() {
     subject.dispose();
   });
 
+  test('catalog replacement clears an alias that becomes ambiguous', () {
+    const selected = CatalogDevice(
+      id: 'infoic:0:0',
+      sourceId: 'INFOIC:0',
+      sourceIndex: 0,
+      aliasIndex: 0,
+      database: 'INFOIC',
+      vendor: 'Vendor',
+      isCustom: false,
+      sourceName: 'TEST27',
+      alias: 'TEST27',
+      type: '1',
+      codeMemorySize: '4',
+      flags: '0',
+      packageDetails: '1C000000',
+    );
+    const duplicate = CatalogDevice(
+      id: 'infoic:1:0',
+      sourceId: 'INFOIC:1',
+      sourceIndex: 1,
+      aliasIndex: 0,
+      database: 'INFOIC',
+      vendor: 'Vendor',
+      isCustom: true,
+      sourceName: 'TEST27 alternate',
+      alias: 'test27',
+      type: '1',
+      codeMemorySize: '4',
+      flags: '0',
+      packageDetails: '1C000000',
+    );
+    final subject = ProgrammerController(
+      backend: MockProgrammerBackend(),
+      profiles: const [mockEpromProfile],
+      catalog: DeviceCatalog(const [selected]),
+    );
+    subject.selectVendor('Vendor');
+    subject.selectDevice(selected);
+    expect(subject.selectedProfile, isNotNull);
+    subject.replaceCatalog(DeviceCatalog(const [selected, duplicate]));
+    expect(subject.selectedProfile, isNull);
+    subject.dispose();
+  });
+
   test('only TL866CS is available for selection', () {
     final subject = controller();
 
     expect(subject.availableProgrammers, [ProgrammerOption.tl866cs]);
     subject.dispose();
   });
+
+  test(
+    'one scan runs at a time and a mode swap ignores its stale result',
+    () async {
+      final real = _DeferredScanBackend();
+      final subject = ProgrammerController(
+        backend: real,
+        simulationBackend: MockProgrammerBackend(),
+        profiles: const [mockEpromProfile],
+      );
+
+      final firstScan = subject.connectProgrammer();
+      expect(subject.isConnecting, isTrue);
+      await subject.connectProgrammer();
+      expect(real.scanCalls, 1);
+
+      subject.useSimulationDemo();
+      expect(subject.usingSimulation, isTrue);
+      expect(subject.isConnecting, isFalse);
+      real.completeScan();
+      await firstScan;
+
+      expect(subject.connection, isNull);
+      expect(subject.connectionStatus, ConnectionStatus.disconnected);
+      subject.dispose();
+    },
+  );
+
+  test(
+    'a physical operation failure clears connection and requires refresh',
+    () async {
+      final subject = ProgrammerController(
+        backend: _FailingPhysicalBackend(),
+        profiles: const [_physicalProfile],
+      );
+      await subject.connectProgrammer();
+      subject.selectProfile(_physicalProfile);
+
+      await subject.read();
+
+      expect(subject.phase, OperationPhase.failed);
+      expect(subject.connection, isNull);
+      expect(subject.connectionStatus, ConnectionStatus.disconnected);
+      expect(subject.message, contains('Refresh TL866CS connection'));
+      subject.dispose();
+    },
+  );
+}
+
+const _physicalProfile = DeviceProfile(
+  stableId: 'physical-test',
+  manufacturer: 'Test',
+  partNumber: '27C256',
+  packageName: 'DIP-28',
+  kind: DeviceKind.memory,
+  capacityBytes: 32 * 1024,
+  socketPlacement: 'Validated test fixture',
+  verified: false,
+  evaluationAuthorized: true,
+  miniproAlias: '27C256',
+  miniproDatabase: 'INFOIC',
+  expectedMiniproPackage: 'DIP28',
+);
+
+final class _DeferredScanBackend implements ProgrammerBackend {
+  final Completer<List<ProgrammerConnection>> _scan = Completer();
+  int scanCalls = 0;
+
+  @override
+  String get backendId => 'physical-test';
+
+  @override
+  Future<List<ProgrammerConnection>> scan() {
+    scanCalls++;
+    return _scan.future;
+  }
+
+  void completeScan() => _scan.complete(const [
+    ProgrammerConnection(
+      backendId: 'physical-test',
+      model: 'TL866CS',
+      identifier: 'stale',
+      firmware: 'test',
+      generation: 1,
+    ),
+  ]);
+
+  @override
+  Future<BackendCapabilities> capabilities(
+    ProgrammerConnection connection,
+    DeviceProfile profile,
+  ) async => const BackendCapabilities();
+
+  @override
+  OperationHandle execute(OperationPlan plan) => throw UnimplementedError();
+}
+
+final class _FailingPhysicalBackend implements ProgrammerBackend {
+  @override
+  String get backendId => 'physical-test';
+
+  @override
+  Future<List<ProgrammerConnection>> scan() async => const [
+    ProgrammerConnection(
+      backendId: 'physical-test',
+      model: 'TL866CS',
+      identifier: 'test',
+      firmware: 'test',
+      generation: 1,
+    ),
+  ];
+
+  @override
+  Future<BackendCapabilities> capabilities(
+    ProgrammerConnection connection,
+    DeviceProfile profile,
+  ) async => const BackendCapabilities(canRead: true);
+
+  @override
+  OperationHandle execute(OperationPlan plan) =>
+      _FailedHandle(plan.operationId);
+}
+
+final class _FailedHandle implements OperationHandle {
+  const _FailedHandle(this._operationId);
+
+  final String _operationId;
+
+  @override
+  Stream<OperationEvent> get events => const Stream.empty();
+
+  @override
+  Future<OperationResult> get completed async => OperationResult(
+    operationId: _operationId,
+    phase: OperationPhase.failed,
+    message: 'Transport response was incomplete.',
+  );
+
+  @override
+  Future<void> requestCancel() async {}
 }
 
 final class _ThrowingMockBackend implements ProgrammerBackend {

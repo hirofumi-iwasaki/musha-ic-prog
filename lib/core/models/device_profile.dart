@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-enum DeviceKind { eprom, logic, sram }
+enum DeviceKind { memory, logic, sram }
 
 enum ErasureMethod { ultraviolet, electrical, none }
 
@@ -18,6 +18,10 @@ final class DeviceProfile {
     this.blankValue = 0xff,
     this.erasureMethod = ErasureMethod.ultraviolet,
     this.verified = false,
+    this.evaluationAuthorized = false,
+    this.miniproAlias,
+    this.miniproDatabase,
+    this.expectedMiniproPackage,
   });
 
   final String stableId;
@@ -29,10 +33,28 @@ final class DeviceProfile {
   final String socketPlacement;
   final int blankValue;
   final ErasureMethod erasureMethod;
+
+  /// Empirical evidence that this exact IC/setup was validated.
   final bool verified;
 
+  /// Explicit authorization for constrained engineering evaluation. This is
+  /// deliberately separate from empirical validation and never changes it.
+  final bool evaluationAuthorized;
+
+  /// Exact alias supplied to minipro's `-p`; never inferred at execution time.
+  final String? miniproAlias;
+  final String? miniproDatabase;
+  final String? expectedMiniproPackage;
+
   bool get supportsMemoryOperations =>
-      kind == DeviceKind.eprom && capacityBytes != null;
+      kind == DeviceKind.memory && capacityBytes != null;
+
+  bool get isTl866Executable =>
+      (verified || evaluationAuthorized) &&
+      miniproDatabase == 'INFOIC' &&
+      miniproAlias != null &&
+      expectedMiniproPackage != null &&
+      supportsMemoryOperations;
 
   String get displayName => '$manufacturer $partNumber';
 }
@@ -42,7 +64,7 @@ const mockEpromProfile = DeviceProfile(
   manufacturer: 'Mock',
   partNumber: '27C256',
   packageName: 'DIP-28',
-  kind: DeviceKind.eprom,
+  kind: DeviceKind.memory,
   capacityBytes: 32 * 1024,
   socketPlacement: 'Simulation only — no physical IC placement',
   verified: false,

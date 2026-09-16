@@ -42,21 +42,35 @@ class BinaryViewer extends StatefulWidget {
     this.input,
     this.readout,
     this.initialColumns = 16,
+    this.onInputDropRequested,
+    this.inputDropEnabled = true,
+    this.inputDropRegionKey,
   });
 
   final ViewerImage? input;
   final ViewerImage? readout;
   final int initialColumns;
 
+  /// Lets the host open a file picker from the empty input region. Native
+  /// drops are received by the host, which validates [inputDropRegionKey].
+  final VoidCallback? onInputDropRequested;
+  final bool inputDropEnabled;
+
+  /// The exact left byte-display (or empty-state) region that accepts drops.
+  /// The Input BIN summary header is deliberately outside this key.
+  final GlobalKey? inputDropRegionKey;
+
   @override
   State<BinaryViewer> createState() => _BinaryViewerState();
 }
 
 class _BinaryViewerState extends State<BinaryViewer> {
-  late final ScrollController _vertical;
+  late final ScrollController _inputVertical;
+  late final ScrollController _readoutVertical;
   int _columns = 16;
   int? _selected;
   bool _leftActive = true;
+  bool _synchronizingScroll = false;
 
   ViewerImage? get _active => _leftActive ? widget.input : widget.readout;
   int get _totalLength =>
@@ -67,13 +81,30 @@ class _BinaryViewerState extends State<BinaryViewer> {
   void initState() {
     super.initState();
     _columns = widget.initialColumns == 8 ? 8 : 16;
-    _vertical = ScrollController();
+    _inputVertical = ScrollController();
+    _readoutVertical = ScrollController();
+    _inputVertical.addListener(
+      () => _syncScroll(_inputVertical, _readoutVertical),
+    );
+    _readoutVertical.addListener(
+      () => _syncScroll(_readoutVertical, _inputVertical),
+    );
   }
 
   @override
   void dispose() {
-    _vertical.dispose();
+    _inputVertical.dispose();
+    _readoutVertical.dispose();
     super.dispose();
+  }
+
+  void _syncScroll(ScrollController source, ScrollController target) {
+    if (_synchronizingScroll || !source.hasClients || !target.hasClients) {
+      return;
+    }
+    _synchronizingScroll = true;
+    target.jumpTo(source.offset.clamp(0, target.position.maxScrollExtent));
+    _synchronizingScroll = false;
   }
 
   @override
@@ -87,6 +118,18 @@ class _BinaryViewerState extends State<BinaryViewer> {
     if (active == null || _selected == null || _selected! >= active.length) {
       _selected = null;
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final source = oldWidget.input == null && widget.input != null
+          ? _readoutVertical
+          : oldWidget.readout == null && widget.readout != null
+          ? _inputVertical
+          : (_leftActive ? _inputVertical : _readoutVertical);
+      final target = identical(source, _inputVertical)
+          ? _readoutVertical
+          : _inputVertical;
+      _syncScroll(source, target);
+    });
   }
 
   void _select(int address, bool left) {
@@ -106,17 +149,16 @@ class _BinaryViewerState extends State<BinaryViewer> {
   }
 
   void _scrollSelectionIntoView() {
-    if (_selected == null || !_vertical.hasClients) return;
+    final vertical = _leftActive ? _inputVertical : _readoutVertical;
+    if (_selected == null || !vertical.hasClients) return;
     final row = _selected! ~/ _columns;
     const rowHeight = 27.0;
     final target = (row * rowHeight).toDouble();
-    if (target < _vertical.offset ||
+    if (target < vertical.offset ||
         target >
-            _vertical.offset +
-                _vertical.position.viewportDimension -
-                rowHeight) {
-      _vertical.animateTo(
-        target.clamp(0, _vertical.position.maxScrollExtent),
+            vertical.offset + vertical.position.viewportDimension - rowHeight) {
+      vertical.animateTo(
+        target.clamp(0, vertical.position.maxScrollExtent),
         duration: const Duration(milliseconds: 130),
         curve: Curves.easeOut,
       );
@@ -172,7 +214,10 @@ class _BinaryViewerState extends State<BinaryViewer> {
         const SnackBar(content: Text('That address is outside this snapshot.')),
       );
     }
-    controller.dispose();
+    // The dialog future resolves before its exit animation removes the field.
+    // Dispose after that animation so its editable text state never observes a
+    // disposed controller.
+    Future<void>.delayed(kThemeAnimationDuration, controller.dispose);
   }
 
   Future<void> _difference(bool next) async {
@@ -264,41 +309,27 @@ class _BinaryViewerState extends State<BinaryViewer> {
             children: [
               _toolbar(context),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(child: _imageSummary(widget.input, 'Input BIN')),
-                  const SizedBox(width: 8),
-                  Expanded(child: _imageSummary(widget.readout, 'IC Readout')),
-                ],
-              ),
-              const SizedBox(height: 8),
               Expanded(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: Theme.of(context).colorScheme.outlineVariant,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _snapshotPanel(
+                        context,
+                        image: widget.input,
+                        title: 'Input BIN',
+                        isLeft: true,
+                      ),
                     ),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: _totalLength == 0
-                      ? const Center(
-                          child: Text(
-                            'Open a BIN file or read an IC to inspect immutable data.',
-                          ),
-                        )
-                      : ListView.builder(
-                          controller: _vertical,
-                          itemCount: _rowCount,
-                          itemExtent: 27,
-                          itemBuilder: (context, row) => _HexRow(
-                            address: row * _columns,
-                            columns: _columns,
-                            left: widget.input,
-                            right: widget.readout,
-                            selected: _selected,
-                            onSelect: _select,
-                          ),
-                        ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _snapshotPanel(
+                        context,
+                        image: widget.readout,
+                        title: 'IC Readout',
+                        isLeft: false,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 8),
@@ -351,6 +382,70 @@ class _BinaryViewerState extends State<BinaryViewer> {
     ],
   );
 
+  Widget _snapshotPanel(
+    BuildContext context, {
+    required ViewerImage? image,
+    required String title,
+    required bool isLeft,
+  }) => DecoratedBox(
+    decoration: BoxDecoration(
+      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8),
+          child: _imageSummary(image, title),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: KeyedSubtree(
+            key: isLeft ? widget.inputDropRegionKey : null,
+            child: _byteDisplay(image, isLeft),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _byteDisplay(ViewerImage? image, bool isLeft) {
+    if (image == null || image.length == 0) {
+      final message = isLeft
+          ? 'Drop a file here to open'
+          : 'Read IC from programmer';
+      final canRequestInput =
+          isLeft &&
+          widget.inputDropEnabled &&
+          widget.onInputDropRequested != null;
+      return Semantics(
+        button: canRequestInput,
+        label: isLeft ? 'Input BIN drop region' : 'IC Readout empty region',
+        child: InkWell(
+          onTap: canRequestInput ? widget.onInputDropRequested : null,
+          child: Center(child: Text(message)),
+        ),
+      );
+    }
+    return ListView.builder(
+      key: ValueKey(isLeft ? 'input-bin-byte-list' : 'ic-readout-byte-list'),
+      controller: isLeft ? _inputVertical : _readoutVertical,
+      itemCount: _rowCount,
+      itemExtent: 27,
+      itemBuilder: (context, row) => _HexPaneRow(
+        address: row * _columns,
+        columns: _columns,
+        image: image,
+        left: widget.input,
+        right: widget.readout,
+        isLeft: isLeft,
+        selected: _selected,
+        onSelect: _select,
+      ),
+    );
+  }
+
   Widget _imageSummary(ViewerImage? image, String title) {
     final input = widget.input;
     final readout = widget.readout;
@@ -359,51 +454,42 @@ class _BinaryViewerState extends State<BinaryViewer> {
     final background = hashMismatch
         ? azukiDifferenceBackground(Theme.of(context).brightness)
         : null;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: image == null
-            ? Text('$title · no snapshot', style: const TextStyle(fontSize: 12))
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '$title · Read only',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  Text(
-                    '${image.name} · ${image.length} bytes',
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  Text(
-                    '${image.origin}${image.stale ? ' · previous successful readout' : ''}',
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 11),
-                  ),
-                  Container(
-                    key: ValueKey('$title-checksum'),
-                    color: background,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 3,
-                      vertical: 2,
-                    ),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Text(
-                        'SHA-1: ${image.sha1}',
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+    return image == null
+        ? Text('$title · no snapshot', style: const TextStyle(fontSize: 12))
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$title · Read only',
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
-      ),
-    );
+              Text(
+                '${image.name} · ${image.length} bytes',
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12),
+              ),
+              Text(
+                '${image.origin}${image.stale ? ' · previous successful readout' : ''}',
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11),
+              ),
+              Container(
+                key: ValueKey('$title-checksum'),
+                color: background,
+                padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Text(
+                    'SHA-1: ${image.sha1}',
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
   }
 
   Widget _inspector(int? value) {
@@ -464,65 +550,53 @@ class _BinaryViewerState extends State<BinaryViewer> {
   );
 }
 
-class _HexRow extends StatelessWidget {
-  const _HexRow({
+class _HexPaneRow extends StatelessWidget {
+  const _HexPaneRow({
     required this.address,
     required this.columns,
+    required this.image,
     required this.left,
     required this.right,
+    required this.isLeft,
     required this.selected,
     required this.onSelect,
   });
   final int address, columns;
+  final ViewerImage image;
   final ViewerImage? left, right;
+  final bool isLeft;
   final int? selected;
   final void Function(int, bool) onSelect;
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Expanded(child: _pane(context, left, true)),
-      const VerticalDivider(width: 1),
-      Expanded(child: _pane(context, right, false)),
-    ],
-  );
-
-  Widget _pane(BuildContext context, ViewerImage? image, bool isLeft) {
-    if (image == null) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 12),
-        child: Text('No snapshot'),
-      );
-    }
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 78,
-              child: Text(
-                address.toRadixString(16).padLeft(8, '0').toUpperCase(),
-                style: const TextStyle(
-                  fontFamily: 'monospace',
-                  color: Colors.blueGrey,
-                ),
+  Widget build(BuildContext context) => SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 78,
+            child: Text(
+              address.toRadixString(16).padLeft(8, '0').toUpperCase(),
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                color: Colors.blueGrey,
               ),
             ),
-            for (var i = 0; i < columns; i++)
-              _cell(context, image, address + i, isLeft),
-            const SizedBox(width: 8),
-            Text(
-              '|${List.generate(columns, (i) => _ascii(image, address + i)).join()}|',
-              style: const TextStyle(fontFamily: 'monospace'),
-            ),
-          ],
-        ),
+          ),
+          for (var i = 0; i < columns; i++)
+            _cell(context, image, address + i, isLeft),
+          const SizedBox(width: 8),
+          Text(
+            '|${List.generate(columns, (i) => _ascii(image, address + i)).join()}|',
+            style: const TextStyle(fontFamily: 'monospace'),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
 
   String _ascii(ViewerImage image, int position) => position >= image.length
       ? ' '

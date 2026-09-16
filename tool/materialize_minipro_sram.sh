@@ -4,21 +4,10 @@ set -eu
 
 expected_commit=cae74c0607077d6260b24995f5e4c0d0b66a6a2e
 repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
-source_dir=${MINIPRO_SOURCE:-/private/tmp/musha-minipro-license-review}
 tooling_dir=$repo_dir/.tooling
 output_dir=${1:-"$tooling_dir/minipro-sram"}
-
-if [ ! -d "$source_dir/.git" ]; then
-    echo "MiniPro checkout is missing: $source_dir" >&2
-    echo "Set MINIPRO_SOURCE to an upstream checkout at $expected_commit." >&2
-    exit 1
-fi
-
-actual_commit=$(git -C "$source_dir" rev-parse "$expected_commit^{commit}")
-if [ "$actual_commit" != "$expected_commit" ]; then
-    echo "Required upstream commit is unavailable in $source_dir: $expected_commit" >&2
-    exit 1
-fi
+source_archive="$tooling_dir/native-src/minipro-$expected_commit.tar.gz"
+source_archive_sha256='6363acb0b69f6038ff7a64a751bd2b4fa671debde487c83fd4c5c876c95175af'
 
 if [ -L "$tooling_dir" ]; then
     echo "Refusing symlinked tooling directory: $tooling_dir" >&2
@@ -51,7 +40,29 @@ fi
 
 staging_dir=$(mktemp -d "$tooling_dir/.minipro-sram-staging.XXXXXX")
 trap 'rm -rf "$staging_dir"' EXIT HUP INT TERM
-git -C "$source_dir" archive "$expected_commit" | tar -x -C "$staging_dir"
+if [ -n "${MINIPRO_SOURCE:-}" ]; then
+    if [ ! -d "$MINIPRO_SOURCE/.git" ]; then
+        echo "MINIPRO_SOURCE is not an upstream Git checkout: $MINIPRO_SOURCE" >&2
+        exit 1
+    fi
+    actual_commit=$(git -C "$MINIPRO_SOURCE" rev-parse "$expected_commit^{commit}")
+    if [ "$actual_commit" != "$expected_commit" ]; then
+        echo "Required upstream commit is unavailable: $expected_commit" >&2
+        exit 1
+    fi
+    git -C "$MINIPRO_SOURCE" archive "$expected_commit" | tar -x -C "$staging_dir"
+else
+    if [ ! -f "$source_archive" ]; then
+        echo "Missing $source_archive. Run tool/fetch_native_sources.sh first." >&2
+        exit 1
+    fi
+    actual_sha256=$(shasum -a 256 "$source_archive" | awk '{print $1}')
+    if [ "$actual_sha256" != "$source_archive_sha256" ]; then
+        echo "Pinned minipro source archive hash mismatch." >&2
+        exit 1
+    fi
+    tar -xzf "$source_archive" --strip-components=1 -C "$staging_dir"
+fi
 
 cp "$repo_dir/third_party/minipro/sram/sram_test.c" "$staging_dir/src/sram_test.c"
 cp "$repo_dir/third_party/minipro/sram/sram_test.h" "$staging_dir/src/sram_test.h"

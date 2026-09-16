@@ -4,7 +4,7 @@ EPROMなどのICを読み出し・書き込みするDart / Flutterデスクト�
 
 ## 状態
 
-2026-09-16: **0.1.0の初回プロトタイプを作成**。Flutter画面・mock操作とSRAM試験エンジンを実装しました。実機検証は未実施です。
+2026-09-16: **0.1.0の実機評価操作を有効化**。Flutter画面・minipro通信・mock操作とSRAM試験エンジンを実装しました。TL866CS本体の認識に成功しました。IC単位の実機検証は未実施です。
 `main`（`7dafc8bfe26dbf4c77467fc95438c7b4f7e8bf57`）から作成した
 `release/0.1.0`で開発します。
 
@@ -35,15 +35,18 @@ EPROMなどのICを読み出し・書き込みするDart / Flutterデスクト�
 [LICENSE](LICENSE)のGPLv3本文は保持します。第三者コード・データ・素材は元の条件と表示を維持します。
 依存物の固定版、対応ソース、第三者表示の整備はバイナリー配布前の必須作業です。
 
-## 初回プロトタイプ
+## 実機評価用プロトタイプ
 
-アプリは **SIMULATION MODE専用** です。実際のTL866CSやICへ接続・書込みしません。
-Connect simulation → Load simulation demo → Blank Check / Program / Verifyで模擬操作を確認できます。
+既定で同梱miniproを使ってTL866CSの接続を確認します。
+本体認識とIC操作は別です。Vendor → Deviceで正確な型番を選び、配置確認後にRead / Blank Check / Verifyを実行します。Programには追加の実行確認があります。ユーザー承認により、対象条件を満たすDIP型メモリーの評価操作を有効にしています。実機検証済みを意味しません。
+画面のデモ起動ボタンは削除しています。模擬バックエンドは自動テスト用に保持します。
+Open BINまたは左側のInput BIN領域へのファイルドロップで読み込みます。拡張子で制限せず、内容をそのままバイト列として扱います。
+Input BINとIC Readoutは、未読込時もそれぞれ枠線付きの領域として表示します。
 入力BINの閲覧、HEX / ASCII、選択byteの2進・10進表示、8/16 bytes切替、アドレス移動・差分移動を実装しています。
 
 今回の表示は64 MiBを上限とするメモリー保持方式です。ページ読込・バックグラウンドハッシュ、
 Save Readoutの画面、コピー操作、古い読出しの専用表示は後続実装です。
-実機バックエンド、ロジックIC実行、TL866CSのSRAMピン制御は未実装です。
+実機バックエンドに本体識別とメモリー操作の処理を実装しました。評価操作は有効化済みですが、ICごとの実機試験は別工程です。ロジックIC実行、TL866CSのSRAMピン制御は未実装です。
 SRAMのC試験エンジンはアプリと未接続で、独立した模擬メモリー試験で検証します。
 App Sandboxはこのプロトタイプでは有効です。公開配布用の署名・公証は未実施です。
 
@@ -65,14 +68,35 @@ sh tool/test_sram.sh
 miniproの固定版からローカルforkを再現する手順は[SRAM追加のREADME](third_party/minipro/README.md)、
 実装状況は[初回実装記録](.chatgpt/IMPLEMENTATION_0.1.0.md)を参照してください。
 
+## GitHub Release の macOS 配布物
+
+GitHub Release を公開すると、`macos-15` の Apple Silicon ランナーが Flutter
+3.47.4（revision `9584c6713b324636289d067944a46fd6b49df14b`）で解析・テスト・
+ビルドを行い、`musha-ic-programmer-macos-arm64.zip` を Release へ追加します。
+手動実行では Release を変更せず、同じ ZIP を Actions の成果物として確認できます。
+
+ZIP にはアプリ、GPL/LGPL と Dart 依存物の表示、ビルド来歴、SHA-256 一覧、アプリと
+同じ固定版の展開済み minipro/libusb ソース、SRAM overlay と再ビルド用スクリプトを含めます。
+現在の CI は ad-hoc 署名です。公開配布前に配布用署名 ID と Apple 公証を別途設定・検証してください。
+
+## 実機接続の確認
+
+TL866CS 1台、firmware 03.2.86 (0x256)を同梱miniproから認識しました。
+Sandboxアプリからも起動時の接続確認に成功しています。
+検証環境はmacOS 27.0 (26A428) / arm64です。macOS 15 / 26の確認は別途必要です。
+ICへの実操作は未実施です。[実機確認記録](.chatgpt/TL866CS_HARDWARE_VALIDATION.md)を参照してください。
+
+ネイティブ依存物の準備は[ビルド手順](third_party/NATIVE_REBUILDING.md)を参照してください。
+配布物はApple Silicon向けです。Homebrewのminipro/libusbには依存しません。
+
 ## カタログと状態表示の更新
 
 固定版miniproの全データベースをオフラインカタログへ取り込みました。
 別名を展開した全81,763件を保持し、TL866CS選択時には141ベンダー・14,497件を対象にします。
 件数には上流のcustom定義と別名を含み、型番の重複は出典を区別して保持します。
 Programmer → Vendor → Deviceの順で選択し、Deviceは全一覧と検索を利用できます。
-T56等の機種は将来用の無効な選択肢で、現在選択可能な機種はTL866CSです。
-カタログ選択は現在の模擬操作とは別で、選択しただけで実機操作が可能になるわけではありません。
+現在の機種一覧にはTL866CSだけを表示します。T56等の将来機種は一覧から除外しています。
+カタログ掲載と実機検証済みを区別します。型番の選択だけで対応保証を意味するものではありません。
 
 下部ステータスバーは接続状態・処理状態を表示し、動作中はプログラマー・IC・USBに触らないよう警告します。
 完了後は動作中警告を解除し結果を表示します。

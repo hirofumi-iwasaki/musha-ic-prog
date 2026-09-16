@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import 'dart:io';
+
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../application/controllers/programmer_controller.dart';
 import '../../core/models/binary_image.dart';
@@ -25,17 +28,24 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
   String? _inputSnapshotId;
   String? _readoutSnapshotId;
   bool _programDialogOpen = false;
+  bool _isLoadingInput = false;
+  final GlobalKey _inputDropRegionKey = GlobalKey();
+  static const MethodChannel _dropChannel = MethodChannel(
+    'mushagaeshi/programmer_files',
+  );
 
   @override
   void initState() {
     super.initState();
     widget.controller.addListener(_refreshSnapshots);
+    _dropChannel.setMethodCallHandler(_onNativeDrop);
     _refreshSnapshots();
   }
 
   @override
   void dispose() {
     widget.controller.removeListener(_refreshSnapshots);
+    _dropChannel.setMethodCallHandler(null);
     super.dispose();
   }
 
@@ -68,9 +78,9 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Program simulated IC?'),
+        title: Text(_isSimulation(c) ? 'Program simulated IC?' : 'Program IC?'),
         content: Text(
-          'This simulation will write the immutable snapshot ${input?.label ?? '—'} (${input?.length ?? 0} bytes) to ${profile?.displayName ?? 'the selected device'}, then read it back and verify every byte.\n\nSHA-1: ${input?.sha1 ?? '—'}\n\nNo physical hardware is controlled.',
+          '${_isSimulation(c) ? 'This simulation will' : 'This operation will'} write the immutable snapshot ${input?.label ?? '—'} (${input?.length ?? 0} bytes), then read it back and verify every byte.\n\nTarget alias: ${_targetLabel(c, profile)}\nCapacity: ${profile?.capacityBytes ?? '—'} bytes\nSHA-1: ${input?.sha1 ?? '—'}${_isSimulation(c) ? '\n\nNo physical hardware is controlled.' : ''}',
         ),
         actions: [
           TextButton(
@@ -79,7 +89,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Program simulation'),
+            child: Text(_isSimulation(c) ? 'Program simulation' : 'Program'),
           ),
         ],
       ),
@@ -125,58 +135,180 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
   };
 
   Future<void> _openBin() async {
-    const typeGroup = XTypeGroup(label: 'Binary files', extensions: ['bin']);
-    final file = await openFile(acceptedTypeGroups: [typeGroup]);
-    if (file == null) {
+    final file = await openFile();
+    if (file != null) {
+      await _loadInput(
+        label: file.name,
+        length: file.length,
+        readBytes: file.readAsBytes,
+      );
+    }
+  }
+
+  Future<void> _onNativeDrop(MethodCall call) async {
+    if (call.method == 'fileDropError') {
+      final arguments = call.arguments;
+      _showFileError(
+        arguments is Map && arguments['message'] is String
+            ? arguments['message'] as String
+            : 'The dropped file could not be opened.',
+      );
       return;
     }
+    if (call.method != 'fileDropped') return;
+    final arguments = call.arguments;
+    final token = arguments is Map ? arguments['scopeToken'] as String? : null;
     try {
-      final length = await file.length();
       if (!mounted ||
-          widget.controller.isBusy ||
-          widget.controller.needsProgramConfirmation) {
+          arguments is! Map ||
+          arguments['path'] is! String ||
+          arguments['x'] is! num ||
+          arguments['y'] is! num) {
+        _showFileError('The dropped file could not be opened.');
         return;
       }
-      if (length > ProgrammerController.maxInputBytes) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'BIN files larger than 64 MiB are not supported yet.',
-            ),
-          ),
-        );
+      if (!_isInputDropAt(
+        Offset(
+          (arguments['x'] as num).toDouble(),
+          (arguments['y'] as num).toDouble(),
+        ),
+      )) {
+        _showFileError('Drop a file on the Input BIN panel.');
         return;
       }
-      final bytes = await file.readAsBytes();
-      if (!mounted ||
-          widget.controller.isBusy ||
-          widget.controller.needsProgramConfirmation) {
-        return;
-      }
-      widget.controller.openBinary(bytes, label: file.name);
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('The BIN file could not be opened.')),
-        );
+      await _loadInputPath(arguments['path'] as String);
+    } finally {
+      if (token != null) {
+        await _dropChannel.invokeMethod<void>('releaseDropScope', token);
       }
     }
   }
 
-  void _loadDemoBin() {
-    final c = widget.controller;
-    // The demo is its own mock configuration, never a claim about a selected
-    // minipro catalog entry or physical IC.
-    c.selectVendor(null);
-    c.selectProfile(mockEpromProfile);
-    final size = mockEpromProfile.capacityBytes!;
-    // A deterministic full-capacity fixture keeps the mock program path usable
-    // without a local file and never makes an undersized program input.
-    final bytes = List<int>.generate(
-      size,
-      (index) => (index * 37 + 0x41) & 0xff,
+  bool _isInputDropAt(Offset point) {
+    final box =
+        _inputDropRegionKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return false;
+    return (Offset.zero & box.size).contains(box.globalToLocal(point));
+  }
+
+  Future<void> _loadInputPath(String path, {String? label}) async {
+    try {
+      final entityType = await FileSystemEntity.type(path, followLinks: true);
+      if (entityType != FileSystemEntityType.file) {
+        _showFileError('The dropped item is not a readable file.');
+        return;
+      }
+      final file = File(path);
+      await _loadInput(
+        label: label ?? path.split(Platform.pathSeparator).last,
+        length: file.length,
+        readBytes: file.readAsBytes,
+      );
+    } catch (_) {
+      _showFileError('The BIN file could not be opened.');
+    }
+  }
+
+  Future<void> _loadInput({
+    required String label,
+    required Future<int> Function() length,
+    required Future<List<int>> Function() readBytes,
+  }) async {
+    if (!mounted) return;
+    if (_isLoadingInput) {
+      _showFileError('Another input file is still loading.');
+      return;
+    }
+    if (widget.controller.isBusy ||
+        widget.controller.needsProgramConfirmation) {
+      _showFileError('Wait for the current operation before opening a file.');
+      return;
+    }
+    _isLoadingInput = true;
+    try {
+      final fileLength = await length();
+      if (fileLength > ProgrammerController.maxInputBytes) {
+        _showFileError('BIN files larger than 64 MiB are not supported yet.');
+        return;
+      }
+      final bytes = await readBytes();
+      if (!mounted ||
+          widget.controller.isBusy ||
+          widget.controller.needsProgramConfirmation) {
+        return;
+      }
+      widget.controller.openBinary(bytes, label: label);
+    } catch (_) {
+      _showFileError('The BIN file could not be opened.');
+    } finally {
+      _isLoadingInput = false;
+    }
+  }
+
+  void _showFileError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  bool _isSimulation(ProgrammerController c) => c.usingSimulation;
+
+  String _targetLabel(ProgrammerController c, DeviceProfile? profile) =>
+      c.selectedDevice?.label ?? profile?.displayName ?? 'the selected device';
+
+  Future<void> _startOperation(
+    ProgrammerController c,
+    String operation,
+    Future<void> Function() start,
+  ) async {
+    if (_isSimulation(c)) {
+      await start();
+      return;
+    }
+    var acknowledged = false;
+    final accepted = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Confirm physical $operation'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Target alias: ${_targetLabel(c, c.selectedProfile)}'),
+              Text(
+                'Capacity: ${c.selectedProfile?.capacityBytes ?? '—'} bytes',
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Confirm the IC alias, orientation, socket placement, and any required adapter before continuing. This catalog entry is upstream-defined and is not proof of physical support.',
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: acknowledged,
+                onChanged: (value) =>
+                    setDialogState(() => acknowledged = value ?? false),
+                title: const Text('I have checked the IC and setup.'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: acknowledged
+                  ? () => Navigator.of(context).pop(true)
+                  : null,
+              child: Text('Start $operation'),
+            ),
+          ],
+        ),
+      ),
     );
-    widget.controller.openBinary(bytes, label: 'demo-${size ~/ 1024}KiB.bin');
+    if (accepted == true && mounted) await start();
   }
 
   @override
@@ -191,7 +323,13 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
               _setupCard(c),
               const SizedBox(height: 12),
               Expanded(
-                child: BinaryViewer(input: _inputView, readout: _readoutView),
+                child: BinaryViewer(
+                  input: _inputView,
+                  readout: _readoutView,
+                  inputDropRegionKey: _inputDropRegionKey,
+                  inputDropEnabled: !c.isBusy && !c.needsProgramConfirmation,
+                  onInputDropRequested: _openBin,
+                ),
               ),
               const SizedBox(height: 12),
               _operations(c),
@@ -214,11 +352,6 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
             color: _connectionColor(c.connectionStatus),
           ),
           const SizedBox(width: 8),
-          const Chip(
-            label: Text('SIMULATION MODE'),
-            visualDensity: VisualDensity.compact,
-          ),
-          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -231,10 +364,12 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                   '${_phaseLabel(c.phase)}: ${c.message ?? 'No operation in progress.'}',
                 ),
                 if (c.isBusy)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
                     child: Text(
-                      'Operation in progress — do not touch the programmer, IC or USB cable. Simulation only.',
+                      c.usingSimulation
+                          ? 'Operation in progress — do not touch the programmer, IC or USB cable. Simulation only.'
+                          : 'Operation in progress — do not touch the programmer, IC or USB cable.',
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -244,8 +379,10 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
           OutlinedButton(
             onPressed: c.isBusy || c.needsProgramConfirmation
                 ? null
-                : c.connectMock,
-            child: const Text('Connect simulation'),
+                : c.connectProgrammer,
+            child: Text(
+              c.usingSimulation ? 'Refresh simulation' : 'Refresh TL866CS',
+            ),
           ),
         ],
       ),
@@ -270,10 +407,19 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
     ProgrammerController c,
   ) => switch (c.connectionStatus) {
     ConnectionStatus.ready =>
-      'Simulation connected · ${c.connection?.model ?? 'mock programmer'} · ${c.connection?.firmware ?? 'firmware unknown'}',
-    ConnectionStatus.busy => 'Simulation connected · operation in progress',
-    ConnectionStatus.unknown => 'Checking simulation connection…',
-    ConnectionStatus.disconnected => 'Simulation disconnected',
+      c.usingSimulation
+          ? 'Simulation connected · ${c.connection?.model ?? 'mock programmer'} · ${c.connection?.firmware ?? 'firmware unknown'}'
+          : c.backendStatus,
+    ConnectionStatus.busy =>
+      c.usingSimulation
+          ? 'Simulation connected · operation in progress'
+          : 'TL866CS connected · operation in progress',
+    ConnectionStatus.unknown =>
+      c.usingSimulation
+          ? 'Checking simulation connection…'
+          : 'Checking TL866CS connection…',
+    ConnectionStatus.disconnected =>
+      c.usingSimulation ? 'Simulation disconnected' : c.backendStatus,
   };
 
   String _phaseLabel(OperationPhase phase) => switch (phase) {
@@ -356,21 +502,19 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
             ),
           ),
           SizedBox(width: 300, child: _catalogDeviceSelector(c)),
+          if (c.selectedDevice != null && !c.usingSimulation)
+            Text(
+              _hardwareEvaluationLabel(c.selectedProfile),
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
           OutlinedButton.icon(
             onPressed: c.isBusy || c.needsProgramConfirmation ? null : _openBin,
             icon: const Icon(Icons.folder_open),
             label: const Text('Open BIN'),
           ),
-          OutlinedButton.icon(
-            onPressed: c.isBusy || c.needsProgramConfirmation
-                ? null
-                : _loadDemoBin,
-            icon: const Icon(Icons.science_outlined),
-            label: const Text('Load simulation demo'),
-          ),
           if (c.selectedProfile != null)
             Text(
-              'Simulation demo target: ${c.selectedProfile!.displayName} · ${c.selectedProfile!.capacityBytes ?? '—'} bytes',
+              'Target: ${c.selectedProfile!.displayName} · ${c.selectedProfile!.capacityBytes ?? '—'} bytes',
             ),
           if (c.blockedReason != null)
             Text(
@@ -381,6 +525,14 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
       ),
     ),
   );
+
+  String _hardwareEvaluationLabel(DeviceProfile? profile) {
+    if (profile?.isTl866Executable != true) {
+      return 'Unsupported for authorized hardware evaluation';
+    }
+    if (profile!.verified) return 'Hardware profile validated';
+    return 'Hardware evaluation · not yet validated on this IC';
+  }
 
   Widget _catalogDeviceSelector(
     ProgrammerController c,
@@ -456,19 +608,31 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
             runSpacing: 8,
             children: [
               FilledButton(
-                onPressed: c.canRead ? c.read : null,
+                onPressed: c.canRead
+                    ? () => _startOperation(c, 'read', c.read)
+                    : null,
                 child: const Text('Read'),
               ),
               OutlinedButton(
-                onPressed: c.canBlankCheck ? c.blankCheck : null,
+                onPressed: c.canBlankCheck
+                    ? () => _startOperation(c, 'blank check', c.blankCheck)
+                    : null,
                 child: const Text('Blank check'),
               ),
               FilledButton.tonal(
-                onPressed: c.canProgram ? c.requestProgram : null,
+                onPressed: c.canProgram
+                    ? () => _startOperation(
+                        c,
+                        'program',
+                        () async => c.requestProgram(),
+                      )
+                    : null,
                 child: const Text('Program'),
               ),
               OutlinedButton(
-                onPressed: c.canVerify ? c.verify : null,
+                onPressed: c.canVerify
+                    ? () => _startOperation(c, 'verify', c.verify)
+                    : null,
                 child: const Text('Verify'),
               ),
               if (c.isBusy)

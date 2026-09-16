@@ -236,3 +236,12 @@ T56などで別途必要になるアルゴリズムデータは、入手可能�
 追補: [minipro forkとSRAM実装方針](MINIPRO_FORK_PLAN.md)を採用する。
 
 追補: [全件カタログ・SHA-1・ステータスバー更新](CATALOG_AND_STATUS_DESIGN.md)を採用する。表示用ハッシュはSHA-1へ変更し、旧SHA-256指定を置き換える。
+
+## 2026-09-16 実機評価への移行
+
+[決定事項D21–D23](DECISIONS.md)を追補として適用する。future機種のUI表示を削除。
+既定バックエンドをTL866CS実機へ切り替え、mockは明示したデモで使用する。
+正式対応型番のallowlistと、開発段階で実行条件を満たした上流型番の評価を区別する。
+実機未検証の型番をverifiedとして扱わない。
+Sandboxは有効のままUSB権限を付け、アプリ内の固定helper・DBを使用する。
+実装・実測の詳細は[実装記録](IMPLEMENTATION_0.1.0.md)へ追記する。

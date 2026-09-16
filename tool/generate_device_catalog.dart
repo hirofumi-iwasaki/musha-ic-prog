@@ -110,8 +110,9 @@ List<CatalogRecord> parseMiniproDatabase(String sourceId, String xml) {
               type: ic.getAttribute('type') ?? '',
               codeMemorySize: ic.getAttribute('code_memory_size'),
               pins: ic.getAttribute('pins'),
-              flags: ic.getAttribute('flags'),
-              pinMap: ic.getAttribute('pin_map'),
+            flags: ic.getAttribute('flags'),
+            pinMap: ic.getAttribute('pin_map'),
+            packageDetails: ic.getAttribute('package_details'),
             ),
           );
         }
@@ -158,6 +159,7 @@ final class CatalogRecord {
     this.pins,
     this.flags,
     this.pinMap,
+    this.packageDetails,
   });
 
   final String id;
@@ -174,6 +176,7 @@ final class CatalogRecord {
   final String? pins;
   final String? flags;
   final String? pinMap;
+  final String? packageDetails;
 
   /// Positional encoding keeps the full alias-expanded catalog practical as an
   /// offline Flutter asset. Field order is defined by schemaVersion 1.
@@ -192,5 +195,6 @@ final class CatalogRecord {
     pins,
     flags,
     pinMap,
+    packageDetails,
   ];
 }

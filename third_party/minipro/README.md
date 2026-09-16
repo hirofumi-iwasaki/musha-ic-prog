@@ -9,14 +9,14 @@ alongside these additions.  The files in `sram/` are also GPL-3.0-or-later;
 their headers identify the local change and date.
 
 This is a small overlay, with a reproducible pinned full-fork materialization
-rather than a committed second upstream checkout.  Run
-`tool/materialize_minipro_sram.sh` to archive the exact upstream commit into
-the ignored `.tooling/minipro-sram/`, copy `sram_test.[ch]` into `src/`, and
-add `src/sram_test.o` to `COMMON_OBJECTS`.  It uses the existing checkout at
-`/private/tmp/musha-minipro-license-review` by default, or `MINIPRO_SOURCE`;
-it does not fetch code or download algorithms.  The materialized tree has no
-nested `.git` directory and still has no physical adapter.  The standalone
-mock test is reproducible without libusb:
+rather than a committed second upstream checkout. Run
+`tool/fetch_native_sources.sh`, then `tool/materialize_minipro_sram.sh`, to
+download and hash-check the exact upstream archive recorded in `UPSTREAM.toml`,
+create the ignored `.tooling/minipro-sram/` tree, copy `sram_test.[ch]` into
+`src/`, and add `src/sram_test.o` to `COMMON_OBJECTS`. Set `MINIPRO_SOURCE`
+only to use an existing upstream Git checkout at the same pinned commit. The
+materialized tree has no nested `.git` directory and still has no physical
+adapter. The standalone mock test is reproducible without libusb:
 
 For safety, materialization only accepts a nonexistent direct child of the
 repository's `.tooling/` directory.  It refuses an existing target, a project

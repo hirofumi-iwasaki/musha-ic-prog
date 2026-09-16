@@ -67,6 +67,7 @@ final class CatalogDevice {
     this.pins,
     this.flags,
     this.pinMap,
+    this.packageDetails,
   });
 
   final String id;
@@ -85,6 +86,7 @@ final class CatalogDevice {
   /// Raw minipro fields retained for future backend-specific matching only.
   final String? flags;
   final String? pinMap;
+  final String? packageDetails;
 
   /// One selectable alias, tied back to its comma-delimited source record.
   String get label => alias.isEmpty ? '(unnamed source record)' : alias;
@@ -101,7 +103,7 @@ final class CatalogDevice {
   };
 
   factory CatalogDevice.fromJsonList(List<Object?> json) {
-    if (json.length != 14) {
+    if (json.length != 15) {
       throw const FormatException('Malformed catalog record.');
     }
     return CatalogDevice(
@@ -119,6 +121,7 @@ final class CatalogDevice {
       pins: json[11] as String?,
       flags: json[12] as String?,
       pinMap: json[13] as String?,
+      packageDetails: json[14] as String?,
     );
   }
 }
@@ -150,6 +153,16 @@ final class DeviceCatalog {
   final Map<String, CatalogDevice> _byId;
 
   CatalogDevice? byId(String id) => _byId[id];
+
+  bool isUnambiguousTl866Alias(CatalogDevice device) =>
+      records
+          .where(
+            (record) =>
+                record.database == 'INFOIC' &&
+                record.alias.toLowerCase() == device.alias.toLowerCase(),
+          )
+          .length ==
+      1;
 
   List<String> vendorsFor(ProgrammerOption programmer) {
     final values =

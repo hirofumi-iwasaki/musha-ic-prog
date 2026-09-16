@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'application/controllers/programmer_controller.dart';
 import 'core/models/device_catalog.dart';
 import 'core/models/device_profile.dart';
 import 'infrastructure/catalog/minipro_device_catalog_loader.dart';
+import 'infrastructure/programmers/minipro/minipro_tl866_backend.dart';
 import 'infrastructure/programmers/mock/mock_programmer_backend.dart';
 import 'presentation/screens/programmer_screen.dart';
 
@@ -20,14 +23,20 @@ Future<void> main() async {
 }
 
 void _run(DeviceCatalog catalog) {
-  runApp(
-    MyApp(
-      controller: ProgrammerController(
-        backend: MockProgrammerBackend(),
-        profiles: const [mockEpromProfile],
-        catalog: catalog,
-      ),
-    ),
+  final controller = ProgrammerController(
+    backend: MiniproTl866Backend(),
+    simulationBackend: MockProgrammerBackend(),
+    profiles: const [mockEpromProfile],
+    catalog: catalog,
+  );
+  runApp(MyApp(controller: controller));
+  unawaited(_connectOnStartup(controller));
+}
+
+Future<void> _connectOnStartup(ProgrammerController controller) async {
+  await controller.connectProgrammer();
+  debugPrint(
+    'TL866CS connection scan: ${controller.backendStatus}; ${controller.message}',
   );
 }
 
