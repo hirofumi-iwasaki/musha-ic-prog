@@ -15,6 +15,7 @@ sha256() { sha256sum "$1" | awk '{print $1}'; }
 fetch() { local file=$1 hash=$2 url=$3; [[ -f $file ]] || curl --fail --location --proto '=https' --tlsv1.2 --output "$file" "$url"; [[ $(sha256 "$file") == "$hash" ]] || { echo "Pinned source hash mismatch: $file" >&2; exit 1; }; }
 mkdir -p "$source_dir"
 fetch "$source_dir/libusb-$libusb_version.tar.bz2" "$libusb_sha256" "https://github.com/libusb/libusb/releases/download/v$libusb_version/libusb-$libusb_version.tar.bz2"
+[[ -f "$source_dir/minipro-$minipro_commit.tar.gz" ]] || cp "$project_dir/third_party/minipro/source/minipro-$minipro_commit.tar.gz" "$source_dir/minipro-$minipro_commit.tar.gz"
 fetch "$source_dir/minipro-$minipro_commit.tar.gz" "$minipro_sha256" "https://gitlab.com/DavidGriffith/minipro/-/archive/$minipro_commit/minipro-$minipro_commit.tar.gz"
 fetch "$source_dir/zlib-$zlib_version.tar.gz" "$zlib_sha256" "https://zlib.net/zlib-$zlib_version.tar.gz"
 rm -rf "$prefix"; mkdir -p "$prefix"

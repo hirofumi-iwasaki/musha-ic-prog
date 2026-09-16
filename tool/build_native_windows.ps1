@@ -23,7 +23,7 @@ $gitBash = if (Test-Path 'C:\Program Files\Git\bin\bash.exe') { 'C:\Program File
 
 if (-not (Test-Path $nativeSource)) {
   New-Item -ItemType Directory -Force -Path (Split-Path -Parent $nativeSource) | Out-Null
-  Invoke-WebRequest -Uri 'https://gitlab.com/DavidGriffith/minipro/-/archive/cae74c0607077d6260b24995f5e4c0d0b66a6a2e/minipro-cae74c0607077d6260b24995f5e4c0d0b66a6a2e.tar.gz' -OutFile $nativeSource
+  Copy-Item (Join-Path $projectDir 'third_party/minipro/source/minipro-cae74c0607077d6260b24995f5e4c0d0b66a6a2e.tar.gz') $nativeSource
 }
 if ((Get-FileHash -Algorithm SHA256 $nativeSource).Hash.ToLowerInvariant() -ne $expectedSourceHash) { throw 'Pinned MiniPro archive hash mismatch.' }
 if (-not $ToolchainRoot) {
