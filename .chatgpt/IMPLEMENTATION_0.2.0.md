@@ -15,7 +15,7 @@ The accepted five-target design is implemented on `release/0.2.0`: macOS ARM64, 
 
 ## Validation in progress
 
-Local Flutter analysis and all 57 tests passed, including shared payload resolution, Windows discovery fixtures and operation-aware close handling. CI repeats these checks for every target. macOS ARM64 and Ubuntu x64/ARM64 packaging have passed. Windows native packaging is under validation; final CI evidence will be recorded here.
+Local Flutter analysis and all 57 tests passed, including shared payload resolution, Windows discovery fixtures and operation-aware close handling. CI repeats these checks for every target. macOS ARM64 and Ubuntu x64/ARM64 packaging have passed. Ubuntu 24.04 x64/ARM64 package checksum and headless launch checks also passed in run `35067786600`. Windows native packaging is under validation; the patched 20 C translation units pass syntax checks against the pinned Windows toolchain headers for both architectures. Final CI evidence will be recorded here.
 
 ## Outstanding acceptance
 

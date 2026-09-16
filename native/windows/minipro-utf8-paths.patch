@@ -133,17 +133,22 @@ diff --git a/src/win_utf8_paths.h b/src/win_utf8_paths.h
 new file mode 100644
 --- /dev/null
 +++ b/src/win_utf8_paths.h
-@@ -0,0 +1,12 @@
+@@ -0,0 +1,17 @@
 +/* SPDX-License-Identifier: GPL-3.0-or-later */
 +#ifndef MINIPRO_WIN_UTF8_PATHS_H
 +#define MINIPRO_WIN_UTF8_PATHS_H
 +#include <stdio.h>
 +#include <sys/stat.h>
++#include <string.h>
 +#ifdef _WIN32
 +FILE *minipro_fopen_utf8(const char *name, const char *mode);
 +int minipro_stat_utf8(const char *name, struct stat *result);
++char *minipro_strndup(const char *source, size_t length);
++char *minipro_stpcpy(char *destination, const char *source);
 +#define fopen(name, mode) minipro_fopen_utf8((name), (mode))
 +#define stat(name, result) minipro_stat_utf8((name), (result))
++#define strndup(source, length) minipro_strndup((source), (length))
++#define stpcpy(destination, source) minipro_stpcpy((destination), (source))
 +#endif
 +#endif
 diff --git a/Makefile b/Makefile
@@ -159,7 +164,7 @@ diff --git a/src/win_utf8_paths.c b/src/win_utf8_paths.c
 new file mode 100644
 --- /dev/null
 +++ b/src/win_utf8_paths.c
-@@ -0,0 +1,27 @@
+@@ -0,0 +1,40 @@
 +#include "win_utf8_paths.h"
 +#ifdef _WIN32
 +#define WIN32_LEAN_AND_MEAN
@@ -185,5 +190,18 @@ new file mode 100644
 +  if (!wide_name) return -1;
 +  const int status = wstat(wide_name, result);
 +  free(wide_name); return status;
++}
++char *minipro_strndup(const char *source, size_t length) {
++  size_t actual = 0;
++  while (actual < length && source[actual]) ++actual;
++  char *result = malloc(actual + 1);
++  if (!result) return NULL;
++  memcpy(result, source, actual);
++  result[actual] = '\0';
++  return result;
++}
++char *minipro_stpcpy(char *destination, const char *source) {
++  while ((*destination = *source) != '\0') { ++destination; ++source; }
++  return destination;
 +}
 +#endif

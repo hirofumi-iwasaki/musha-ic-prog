@@ -74,7 +74,7 @@ try {
   Copy-Item (Join-Path $zlibBuild 'libz.a') (Join-Path $zlibInclude 'libz.a') -Force
   $env:OS = 'Windows_NT'
   & $make.Source -C $source 'PKG_CONFIG=/bin/true' clean
-  & $make.Source -C $source 'PKG_CONFIG=/bin/true' "CC=$triple-clang" 'CFLAGS=-O2 -DNDEBUG -Isrc/zlib' 'LDFLAGS=-municode -static-libgcc -Lsrc/zlib'
+  & $make.Source -C $source 'PKG_CONFIG=/bin/true' 'GIT_BRANCH=pinned' 'SHARE_INSTDIR=resources/minipro' "CC=$triple-clang" 'CFLAGS=-O2 -DNDEBUG -Isrc/zlib' 'LDFLAGS=-municode -static-libgcc -Lsrc/zlib'
   if ($LASTEXITCODE -ne 0) { throw 'MiniPro cross-build failed.' }
   New-Item -ItemType Directory -Force -Path (Join-Path $prefix 'bin'), (Join-Path $prefix 'resources\minipro') | Out-Null
   Copy-Item (Join-Path $source 'minipro.exe') (Join-Path $prefix 'bin\minipro.exe') -Force
