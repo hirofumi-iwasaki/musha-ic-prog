@@ -143,7 +143,7 @@ try {
   Copy-Item $nativeSource (Join-Path $sourceNative 'minipro-cae74c0607077d6260b24995f5e4c0d0b66a6a2e.tar.gz') -Force
   Copy-Item $libusbSource (Join-Path $sourceNative 'libusb-1.0.29.tar.bz2') -Force
   Copy-Item $zlibSource (Join-Path $sourceNative 'zlib-1.3.2.tar.gz') -Force
-  Copy-Item (Join-Path $projectDir 'native\windows\minipro-utf8-paths.patch'), (Join-Path $projectDir 'native\windows\tl866_probe_windows.c') $sourceNative -Force
+  Copy-Item (Join-Path $projectDir 'native\windows\minipro-utf8-paths.patch'), (Join-Path $projectDir 'native\windows\libusb-msvc-c5287.patch'), (Join-Path $projectDir 'native\windows\tl866_probe_windows.c') $sourceNative -Force
   & $dart run tool/ci/write_distribution_metadata.dart $packageRoot "windows-$Architecture" $FlutterBin
   if ($LASTEXITCODE -ne 0) { throw 'Distribution metadata generation failed.' }
   & $dart run tool/ci/write_checksums.dart $packageRoot

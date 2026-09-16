@@ -67,6 +67,8 @@ try {
   New-Item -ItemType Directory -Path $libusbSource | Out-Null
   & $windowsTar -xjf $libusbArchive -C $libusbSource --strip-components=1
   if ($LASTEXITCODE -ne 0) { throw 'libusb source extraction failed.' }
+  & git -C $libusbSource apply (Join-Path $projectDir 'native\windows\libusb-msvc-c5287.patch')
+  if ($LASTEXITCODE -ne 0) { throw 'Pinned libusb MSVC compatibility patch failed.' }
   $msbuild = Get-Command msbuild.exe -ErrorAction SilentlyContinue
   if (-not $msbuild) {
     $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
@@ -118,6 +120,6 @@ try {
     $bytes = [IO.File]::ReadAllBytes($_.FullName); $offset = [BitConverter]::ToInt32($bytes, 0x3c); $machine = [BitConverter]::ToUInt16($bytes, $offset + 4)
     if ($machine -ne $expectedMachine) { throw ('Unexpected PE architecture in {0}: 0x{1:X4}' -f $_.Name, $machine) }
   }
-  @("target_architecture=$Architecture", "minipro_commit=cae74c0607077d6260b24995f5e4c0d0b66a6a2e", "transport=libusb-winusb", "libusb_version=1.0.29", "libusb_sha256=$libusbHash", "llvm_mingw_version=$toolchainVersion", "llvm_mingw_sha256=$toolchainHash", "llvm_mingw_host=x86_64", "zlib_version=$zlibVersion", "zlib_sha256=$zlibHash", "utf8_path_patch=minipro-utf8-paths.patch") | Set-Content -Encoding utf8 (Join-Path $prefix 'BUILD-MANIFEST.txt')
+  @("target_architecture=$Architecture", "minipro_commit=cae74c0607077d6260b24995f5e4c0d0b66a6a2e", "transport=libusb-winusb", "libusb_version=1.0.29", "libusb_sha256=$libusbHash", "libusb_msvc_patch=libusb-msvc-c5287.patch", "llvm_mingw_version=$toolchainVersion", "llvm_mingw_sha256=$toolchainHash", "llvm_mingw_host=x86_64", "zlib_version=$zlibVersion", "zlib_sha256=$zlibHash", "utf8_path_patch=minipro-utf8-paths.patch") | Set-Content -Encoding utf8 (Join-Path $prefix 'BUILD-MANIFEST.txt')
   Write-Host "Built native Windows $Architecture payload at $prefix"
 } finally { if (Test-Path $source) { Remove-Item -Recurse -Force $source }; if (Test-Path $zlibSource) { Remove-Item -Recurse -Force $zlibSource }; if (Test-Path $libusbSource) { Remove-Item -Recurse -Force $libusbSource } }

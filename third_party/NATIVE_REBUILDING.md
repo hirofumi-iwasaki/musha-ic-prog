@@ -67,7 +67,9 @@ SetupAPI probe with pinned LLVM-MinGW. Windows explicitly selects
 `src/usb_win.c`. It builds pinned zlib statically and libusb 1.0.29 as a shared
 DLL using Visual Studio MSBuild (`Release-MT`, v143, matching x64/ARM64 target).
 The libusb archive is SHA-256 verified using `third_party/libusb/UPSTREAM.toml`'s
-pinned hash. The DLL is installed beside `native/minipro.exe`; packaging checks
+pinned hash. The build applies `native/windows/libusb-msvc-c5287.patch`,
+which explicitly casts USB request flags before their bitwise OR to satisfy
+newer MSVC diagnostics without changing the request value. The DLL is installed beside `native/minipro.exe`; packaging checks
 both its PE architecture and MiniPro's libusb import. The matching libusb source
 archive and LGPL license are included in the distribution.
 No MSYS/Cygwin runtime is included. The original native archives, patch,
