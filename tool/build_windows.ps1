@@ -62,11 +62,6 @@ if ($null -eq $probeResult.PSObject.Properties['count'] -or $null -eq $probeResu
   throw 'Packaged SetupAPI probe JSON is missing count or devices.'
 }
 
-$expectedMachine = if ($Architecture -eq 'arm64') { 0xaa64 } else { 0x8664 }
-Get-ChildItem $bundle -File -Recurse | Where-Object { $_.Extension -in '.exe', '.dll' } | ForEach-Object {
-  $bytes = [IO.File]::ReadAllBytes($_.FullName); $offset = [BitConverter]::ToInt32($bytes, 0x3c); $machine = [BitConverter]::ToUInt16($bytes, $offset + 4)
-  if ($machine -ne $expectedMachine) { throw ('Unexpected PE architecture in {0}: 0x{1:X4}' -f $_.FullName, $machine) }
-}
 $dumpbin = Get-Command dumpbin.exe -ErrorAction SilentlyContinue
 if (-not $dumpbin) {
   $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
@@ -82,8 +77,28 @@ function Get-DumpbinImports([string]$Path) {
   if ($LASTEXITCODE -ne 0) { throw "dumpbin dependency inspection failed: $Path" }
   return $imports
 }
-$appImports = Get-DumpbinImports $app
-foreach ($runtimeName in @([regex]::Matches($appImports, '(?im)^\s*((?:MSVCP|VCRUNTIME|CONCRT)\d+(?:_\d+)?\.DLL)\s*$') | ForEach-Object { $_.Groups[1].Value })) {
+$referencedDlls = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+Get-ChildItem $bundle -File -Recurse | Where-Object { $_.Extension -in '.exe', '.dll' } | ForEach-Object {
+  $imports = Get-DumpbinImports $_.FullName
+  foreach ($match in [regex]::Matches($imports, '(?im)^\s*([A-Za-z0-9_.-]+\.dll)\s*$')) {
+    [void]$referencedDlls.Add($match.Groups[1].Value)
+  }
+}
+# InstallRequiredSystemLibraries can add an x64 CRT companion on ARM64. Keep
+# only CRT files referenced by at least one packaged PE image.
+Get-ChildItem $bundle -File | Where-Object {
+  $_.Name -match '^(?:MSVCP|VCRUNTIME|CONCRT)\d+(?:_\d+)?\.dll$' -and
+  -not $referencedDlls.Contains($_.Name)
+} | ForEach-Object {
+  Write-Host "Omitting unreferenced CRT companion: $($_.Name)"
+  Remove-Item -LiteralPath $_.FullName -Force
+}
+$expectedMachine = if ($Architecture -eq 'arm64') { 0xaa64 } else { 0x8664 }
+Get-ChildItem $bundle -File -Recurse | Where-Object { $_.Extension -in '.exe', '.dll' } | ForEach-Object {
+  $bytes = [IO.File]::ReadAllBytes($_.FullName); $offset = [BitConverter]::ToInt32($bytes, 0x3c); $machine = [BitConverter]::ToUInt16($bytes, $offset + 4)
+  if ($machine -ne $expectedMachine) { throw ('Unexpected PE architecture in {0}: 0x{1:X4}' -f $_.FullName, $machine) }
+}
+foreach ($runtimeName in @($referencedDlls | Where-Object { $_ -match '^(?:MSVCP|VCRUNTIME|CONCRT)\d+(?:_[A-Za-z0-9]+)*\.dll$' })) {
   if (-not (Test-Path (Join-Path $bundle $runtimeName))) {
     throw "Missing app-local MSVC runtime dependency: $runtimeName"
   }
