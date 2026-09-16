@@ -51,7 +51,7 @@ applications, reconnect, and recheck the binding in Zadig.
 
 The former v0.2.0 release used a legacy vendor-driver path for TL866CS and was
 withdrawn. Assigning WinUSB does not fix that older executable; use a corrected
-build from the `release/0.2.0` branch. Windows physical USB acceptance remains
+build from the republished v0.2.0 Release. Windows physical USB acceptance remains
 pending separately for x64 and ARM64.
 
 ## Rebuilding

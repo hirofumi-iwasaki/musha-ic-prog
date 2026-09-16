@@ -102,3 +102,12 @@ The user requested withdrawal of v0.2.0: the GitHub Release and assets were
 deleted; its tag remains unchanged. Corrected branch builds are for validation;
 do not republish a Release without a new user instruction. Compilation and
 hosted no-device checks must not be reported as physical hardware acceptance.
+
+## D31: Republish corrected v0.2.0
+
+The user explicitly requested publishing v0.2.0 again after the correction.
+Move the old tag from `941f6f0fc7c33e768c8ae8c81ef0157710a56413` to the corrected
+release commit, publish English release notes titled `v0.2.0`, and rebuild all
+five assets from that tag through the release workflow. The earlier withdrawal
+record remains historical. This approval is not physical hardware test evidence
+and does not request merging PR #2.

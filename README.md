@@ -8,9 +8,9 @@ Version 0.2.0 extends the TL866CS application to five native targets: macOS ARM6
 
 ## v0.2.0 release status
 
-The v0.2.0 Release has been withdrawn after a Windows ARM64 report exposed an incorrect TL866CS driver assumption. Its Git tag is retained for traceability. Corrected builds on `release/0.2.0` use bundled libusb with the Windows WinUSB driver, matching the libusb transport used on macOS/Linux. Windows requires a one-time driver assignment; Ubuntu may require USB access rules.
+The republished [v0.2.0 Release](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.2.0) includes the corrected Windows TL866CS transport: bundled libusb with Microsoft's WinUSB driver. Windows requires a one-time driver assignment; Ubuntu may require USB access rules. Replace any archive downloaded before this correction.
 
-Use the branch's successful [GitHub Actions builds](https://github.com/hirofumi-iwasaki/musha-ic-prog/actions/workflows/desktop-build.yml) for evaluation until a new Release is published. Automated builds do not establish physical USB acceptance. See the [implementation record](.chatgpt/IMPLEMENTATION_0.2.0.md) and [Windows setup notes](native/windows/README.md). No new device families or physical SRAM/logic tests are enabled by this port.
+All five corrected targets and both Ubuntu 24.04 launch checks passed [automated validation](https://github.com/hirofumi-iwasaki/musha-ic-prog/actions/runs/35074949228). Automated builds do not establish physical USB acceptance. See the [implementation record](.chatgpt/IMPLEMENTATION_0.2.0.md) and [Windows setup notes](native/windows/README.md). No new device families or physical SRAM/logic tests are enabled by this port.
 
 ## v0.1.0 release evidence
 
@@ -47,7 +47,7 @@ Select **Open BIN**, or drop one file onto the left **Input BIN** pane. Any file
 
 ## Run the Windows or Ubuntu app
 
-While v0.2.0 is withdrawn, download the archive matching your OS and processor from a successful corrected branch build in [GitHub Actions](https://github.com/hirofumi-iwasaki/musha-ic-prog/actions/workflows/desktop-build.yml). Extract the complete directory; keep the executable beside its bundled libraries, `native/` and `resources/` directories.
+Download the archive matching your OS and processor from [v0.2.0 Releases](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.2.0). Extract the complete directory; keep the executable beside its bundled libraries, `native/` and `resources/` directories.
 
 - Windows: open `mushagaeshi_ic_programmer.exe`. USB operations require assigning the Windows WinUSB driver to TL866CS once, following the [Windows setup notes](native/windows/README.md). The same notes are included as `resources/minipro/WINDOWS_USB_SETUP.md`. A native ARM64 build does not validate the driver binding by itself.
 - Ubuntu: run `mushagaeshi_ic_programmer` from an extracted desktop bundle. Install the distribution's GTK 3, EGL/OpenGL and LZMA runtime libraries (`libgtk-3-0`, `libegl1`, `libgles2`, `libgl1-mesa-dri`, `liblzma5`) and follow the [USB access instructions](linux/udev/README.md) if permission is denied. Do not run the application as root.
