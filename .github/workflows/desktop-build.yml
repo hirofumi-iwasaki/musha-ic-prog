@@ -92,6 +92,7 @@ jobs:
           if-no-files-found: error
 
   ubuntu-24-smoke:
+    if: ${{ always() && !cancelled() }}
     name: Ubuntu 24.04 ${{ matrix.architecture }} bundle smoke
     needs: build
     strategy:

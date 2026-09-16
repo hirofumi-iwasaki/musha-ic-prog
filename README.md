@@ -4,7 +4,7 @@ A desktop EPROM and memory IC programmer with a read-only hexadecimal viewer and
 
 Repository: [hirofumi-iwasaki/musha-ic-prog](https://github.com/hirofumi-iwasaki/musha-ic-prog)
 
-Version 0.2.0 extends the TL866CS application to five native targets: macOS ARM64, Windows x64/ARM64 and Ubuntu x64/ARM64. The ports are being validated; CI compilation and physical USB acceptance are tracked separately. The Dart / Flutter architecture allows additional programmer backends, such as the XGecu T56, and future Windows / Linux versions. The viewer follows the presentation approach of [Mushagaeshi Binary Editor](https://github.com/hirofumi-iwasaki/musha-bin-editor).
+Version 0.2.0 extends the TL866CS application to five native targets: macOS ARM64, Windows x64/ARM64 and Ubuntu x64/ARM64. The ports are being validated; CI compilation and physical USB acceptance are tracked separately. The Dart / Flutter architecture allows additional programmer backends, such as the XGecu T56, across all supported operating systems. The viewer follows the presentation approach of [Mushagaeshi Binary Editor](https://github.com/hirofumi-iwasaki/musha-bin-editor).
 
 ## v0.2.0 development status
 
@@ -43,6 +43,15 @@ The current application uses ad-hoc signing and has not been notarized by Apple.
 
 Select **Open BIN**, or drop one file onto the left **Input BIN** pane. Any file extension is accepted; contents are read as raw bytes, without interpreting formats such as Intel HEX. Select the exact vendor and device before performing an IC operation, and confirm the device placement. Programming requires an additional confirmation. Do not touch the programmer, IC or USB connection while an operation is running.
 
+## Run the Windows or Ubuntu app
+
+Download the archive matching your OS and processor from the Actions build artifacts during development. Extract the complete directory; keep the executable beside its bundled libraries, `native/` and `resources/` directories.
+
+- Windows: open `mushagaeshi_ic_programmer.exe`. USB operations require the TL866CS WinUSB driver and the interface GUID described in the [Windows setup notes](native/windows/README.md). A native ARM64 build does not validate the driver binding by itself.
+- Ubuntu: run `mushagaeshi_ic_programmer` from an extracted desktop bundle. Install the distribution's GTK 3 runtime and follow the [USB access instructions](linux/udev/README.md) if permission is denied. Do not run the application as root.
+
+Windows and Ubuntu physical USB acceptance remains pending. The same file viewer and operation confirmation flow is used on every target.
+
 ## Features
 
 - TL866CS detection through bundled, pinned minipro and libusb components
@@ -53,7 +62,7 @@ Select **Open BIN**, or drop one file onto the left **Input BIN** pane. Any file
 - Read-only hexadecimal and ASCII display, plus binary and decimal values for the selected byte
 - Side-by-side SHA-1 values, with differing values highlighted in the same azuki color as byte differences
 - Eight or sixteen bytes per row, synchronized scrolling, address navigation and difference navigation
-- Left-pane Finder drag-and-drop and extension-independent file opening
+- Left-pane file drag-and-drop and extension-independent file opening
 - Connection and operation status, including a warning while the programmer is busy
 
 Catalog presence does not mean a device has passed hardware validation. Aliases and upstream custom definitions are retained, including entries with similar names from different sources.
@@ -97,6 +106,8 @@ FLUTTER_BIN=flutter zsh tool/package_macos.sh
 
 `FLUTTER_BIN` can also point to an absolute Flutter executable path. The scripts build pinned minipro and libusb sources locally, verify their download hashes, retain sandbox entitlements and sign the complete application. Output is written to `dist/`; `build/`, `dist/` and `.tooling/` are excluded from Git.
 
+Windows packaging uses `tool/build_windows.ps1 -Architecture x64` (or `arm64`) from PowerShell on the matching native host. Ubuntu packaging uses `FLUTTER_BIN=flutter bash tool/build_linux.sh x64` (or `arm64`) on the matching Ubuntu 22.04 host. The [CI workflow](.github/workflows/desktop-build.yml) records prerequisites and the pinned Flutter bootstrap commands.
+
 See [native rebuilding instructions](third_party/NATIVE_REBUILDING.md) and the [minipro SRAM overlay](third_party/minipro/README.md) for dependency and fork details.
 
 ## Validation
@@ -107,7 +118,7 @@ flutter test
 sh tool/test_sram.sh
 ```
 
-The Flutter suite contains 51 tests covering controller behavior, profile mapping, minipro process handling, binary comparison and native drop messages. The separate SRAM engine uses simulated memory tests; it is not connected to TL866CS hardware operations. The [hardware validation record](.chatgpt/TL866CS_HARDWARE_VALIDATION.md) distinguishes connection checks, user reports and outstanding device-specific validation.
+The Flutter suite contains 57 tests covering controller behavior, profile mapping, minipro process handling, binary comparison and native drop messages. The separate SRAM engine uses simulated memory tests; it is not connected to TL866CS hardware operations. The [hardware validation record](.chatgpt/TL866CS_HARDWARE_VALIDATION.md) distinguishes connection checks, user reports and outstanding device-specific validation.
 
 ## Architecture and current limitations
 
@@ -115,7 +126,8 @@ The Flutter suite contains 51 tests covering controller behavior, profile mappin
 - `lib/infrastructure`: programmer backends and minipro process execution
 - `lib/application`: operation control and supported-profile mapping
 - `lib/presentation`: device selection, binary viewer and status display
-- `macos/Runner`: native window configuration, file drops and sandbox integration
+- `macos/Runner`, `windows/runner`, `linux`: native windows, file drops and coordinated close requests
+- `lib/platform`: shared desktop host contract and operation-aware close handling
 - `native`: USB connection probe
 - `third_party`: pinned dependency manifests, licenses and SRAM extension sources
 

@@ -17,6 +17,8 @@ $zlibVersion = '1.3.2'
 $zlibArchive = Join-Path $projectDir ".tooling\native-src\zlib-$zlibVersion.tar.gz"
 $zlibUrl = "https://zlib.net/zlib-$zlibVersion.tar.gz"
 $zlibHash = 'bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16'
+$windowsTar = Join-Path $env:SystemRoot 'System32\tar.exe'
+$windowsTar = if (Test-Path $windowsTar) { $windowsTar } else { throw 'Windows tar.exe is required.' }
 $triple = if ($Architecture -eq 'arm64') { 'aarch64-w64-mingw32' } else { 'x86_64-w64-mingw32' }
 $prefix = Join-Path $projectDir ".tooling\native-prefix\windows-$Architecture"
 $gitBash = if (Test-Path 'C:\Program Files\Git\bin\bash.exe') { 'C:\Program Files\Git\bin\bash.exe' } else { (Get-Command bash.exe -ErrorAction Stop).Source }
@@ -59,7 +61,7 @@ try {
   if (-not (Test-Path $zlibArchive)) { Invoke-WebRequest -Uri $zlibUrl -OutFile $zlibArchive }
   if ((Get-FileHash -Algorithm SHA256 $zlibArchive).Hash.ToLowerInvariant() -ne $zlibHash) { throw 'Pinned zlib archive hash mismatch.' }
   New-Item -ItemType Directory -Path $zlibSource | Out-Null
-  tar.exe -xzf $zlibArchive -C $zlibSource --strip-components=1
+  & $windowsTar -xzf $zlibArchive -C $zlibSource --strip-components=1
   if ($LASTEXITCODE -ne 0) { throw 'zlib source extraction failed.' }
   $zlibBuild = Join-Path $zlibSource 'build'; New-Item -ItemType Directory -Path $zlibBuild | Out-Null
   $zlibFiles = @('adler32.c','compress.c','crc32.c','deflate.c','gzclose.c','gzlib.c','gzread.c','gzwrite.c','inflate.c','infback.c','inffast.c','inftrees.c','trees.c','uncompr.c','zutil.c')

@@ -122,4 +122,4 @@ Accepted design and detailed gates: [CROSS_PLATFORM_0.2.0.md](CROSS_PLATFORM_0.2
 - [ ] P4: Per-target UI and approved IC read/verify/write acceptance.
 - [ ] P5: Same-commit five-asset release workflow and English distribution documentation.
 
-This design task does not change application version, implement native ports or publish a release.
+Implementation is authorized and in progress at version `0.2.0+2`. Native Windows and Linux runners, shared platform contracts, packaging scripts and the five-target Actions matrix are implemented. Follow the [implementation record](IMPLEMENTATION_0.2.0.md) for build evidence and outstanding hardware gates. No v0.2.0 release has been published.
