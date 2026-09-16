@@ -39,6 +39,18 @@ New-Item -ItemType Directory -Force -Path $packageNative, $packageResources | Ou
 Copy-Item (Join-Path $nativePrefix 'bin\*.exe') $packageNative -Force
 Copy-Item (Join-Path $nativePrefix 'resources\minipro\*') $packageResources -Force
 Copy-Item (Join-Path $nativePrefix 'BUILD-MANIFEST.txt') (Join-Path $packageResources 'BUILD-MANIFEST.txt') -Force
+$miniproSmoke = Join-Path $packageNative 'minipro.exe'
+$miniproOutput = & $miniproSmoke --help 2>&1
+if ($LASTEXITCODE -ne 1 -or (($miniproOutput -join "`n") -notmatch 'Usage:')) {
+  throw 'Packaged MiniPro offline help smoke check failed.'
+}
+$probeSmoke = Join-Path $packageNative 'tl866_probe.exe'
+$probeJson = & $probeSmoke
+if ($LASTEXITCODE -ne 0) { throw 'Packaged SetupAPI probe smoke check failed.' }
+try { $probeResult = $probeJson | ConvertFrom-Json -ErrorAction Stop } catch { throw 'Packaged SetupAPI probe did not emit valid JSON.' }
+if ($null -eq $probeResult.PSObject.Properties['count'] -or $null -eq $probeResult.PSObject.Properties['devices']) {
+  throw 'Packaged SetupAPI probe JSON is missing count or devices.'
+}
 
 $expectedMachine = if ($Architecture -eq 'arm64') { 0xaa64 } else { 0x8664 }
 Get-ChildItem $bundle -File -Recurse | Where-Object { $_.Extension -in '.exe', '.dll' } | ForEach-Object {

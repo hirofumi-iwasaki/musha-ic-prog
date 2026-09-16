@@ -19,6 +19,7 @@ void main(List<String> args) {
     'pubspec.lock',
     'analysis_options.yaml',
     '.gitignore',
+    '.gitattributes',
     '.github',
     '.chatgpt',
     'lib',

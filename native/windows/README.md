@@ -12,7 +12,8 @@ are checked as x64 or ARM64 and do not require MSYS/Cygwin at runtime. zlib
 1.3.2 is built statically for each target; WinUSB and SetupAPI are Windows
 system DLLs and are not redistributed.
 
-The Windows MiniPro patch translates UTF-8 command-line file names to UTF-16
+The Windows MiniPro patch starts from `wmain`, converts each Windows UTF-16
+command-line argument to UTF-8, and translates UTF-8 file names back to UTF-16
 only at the CRT file-open/stat boundary. It keeps the upstream WinUSB protocol
 backend, including its interface GUID, unchanged.
 
