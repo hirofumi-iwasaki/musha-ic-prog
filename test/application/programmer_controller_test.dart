@@ -179,6 +179,24 @@ void main() {
   });
 
   test(
+    'connection scan shows an optional backend readiness diagnostic',
+    () async {
+      final subject = ProgrammerController(
+        backend: _DiagnosticScanBackend(),
+        profiles: const [mockEpromProfile],
+      );
+
+      await subject.connectProgrammer();
+
+      expect(subject.connectionStatus, ConnectionStatus.disconnected);
+      expect(subject.connection, isNull);
+      expect(subject.blockedReason, 'TL866CS driver is not ready.');
+      expect(subject.message, 'TL866CS driver is not ready.');
+      subject.dispose();
+    },
+  );
+
+  test(
     'one scan runs at a time and a mode swap ignores its stale result',
     () async {
       final real = _DeferredScanBackend();
@@ -263,6 +281,27 @@ final class _DeferredScanBackend implements ProgrammerBackend {
       generation: 1,
     ),
   ]);
+
+  @override
+  Future<BackendCapabilities> capabilities(
+    ProgrammerConnection connection,
+    DeviceProfile profile,
+  ) async => const BackendCapabilities();
+
+  @override
+  OperationHandle execute(OperationPlan plan) => throw UnimplementedError();
+}
+
+final class _DiagnosticScanBackend
+    implements ProgrammerBackend, ProgrammerDiscoveryDiagnostics {
+  @override
+  String get backendId => 'physical-test';
+
+  @override
+  String get discoveryReason => 'TL866CS driver is not ready.';
+
+  @override
+  Future<List<ProgrammerConnection>> scan() async => const [];
 
   @override
   Future<BackendCapabilities> capabilities(

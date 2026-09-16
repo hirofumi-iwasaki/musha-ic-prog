@@ -5,6 +5,9 @@ import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path/path.dart' as paths;
+
+import '../../platform/desktop_host.dart';
 
 import '../../application/controllers/programmer_controller.dart';
 import '../../core/models/binary_image.dart';
@@ -30,22 +33,32 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
   bool _programDialogOpen = false;
   bool _isLoadingInput = false;
   final GlobalKey _inputDropRegionKey = GlobalKey();
-  static const MethodChannel _dropChannel = MethodChannel(
-    'mushagaeshi/programmer_files',
-  );
+  late final DesktopHost _desktopHost;
 
   @override
   void initState() {
     super.initState();
     widget.controller.addListener(_refreshSnapshots);
-    _dropChannel.setMethodCallHandler(_onNativeDrop);
+    _desktopHost = DesktopHost(
+      onFileEvent: _onNativeDrop,
+      canClose: () {
+        if (widget.controller.isBusy ||
+            widget.controller.needsProgramConfirmation) {
+          _showFileError(
+            'Wait for the current operation to finish before closing.',
+          );
+          return false;
+        }
+        return true;
+      },
+    )..attach();
     _refreshSnapshots();
   }
 
   @override
   void dispose() {
     widget.controller.removeListener(_refreshSnapshots);
-    _dropChannel.setMethodCallHandler(null);
+    _desktopHost.dispose();
     super.dispose();
   }
 
@@ -179,7 +192,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
       await _loadInputPath(arguments['path'] as String);
     } finally {
       if (token != null) {
-        await _dropChannel.invokeMethod<void>('releaseDropScope', token);
+        await _desktopHost.releaseScope(token);
       }
     }
   }
@@ -200,7 +213,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
       }
       final file = File(path);
       await _loadInput(
-        label: label ?? path.split(Platform.pathSeparator).last,
+        label: label ?? paths.basename(path),
         length: file.length,
         readBytes: file.readAsBytes,
       );

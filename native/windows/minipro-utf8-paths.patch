@@ -1,0 +1,99 @@
+diff --git a/Makefile b/Makefile
+--- a/Makefile
++++ b/Makefile
+@@ -103,6 +103,7 @@
+ override LIBS += -lsetupapi \
+                  -lwinusb \
+ 				 -lz
++override CPPFLAGS += -include src/win_utf8_paths.h
+ endif
+ 
+ 
+diff --git a/src/main.c b/src/main.c
+--- a/src/main.c
++++ b/src/main.c
+@@ -3454,7 +3454,7 @@
+ }
+ 
+ /* Program Main entry point */
+-int main(int argc, char **argv)
++int minipro_main(int argc, char **argv)
+ {
+ /* If we are in windows start the VT100 support.
+ *  Set the Windows translation mode to binary.
+@@ -3642,3 +3642,34 @@
+ 	minipro_close(handle);
+ 	return ret;
+ }
++
++#ifdef _WIN32
++int wmain(int argc, wchar_t **wide_argv)
++{
++	char **argv = calloc((size_t)argc + 1, sizeof(*argv));
++	if (!argv)
++		return EXIT_FAILURE;
++	for (int index = 0; index < argc; ++index) {
++		const int size = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
++			wide_argv[index], -1, NULL, 0, NULL, NULL);
++		if (!size || !(argv[index] = malloc((size_t)size)) ||
++			!WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, wide_argv[index],
++				-1, argv[index], size, NULL, NULL)) {
++			for (int cleanup = 0; cleanup <= index; ++cleanup)
++				free(argv[cleanup]);
++			free(argv);
++			return EXIT_FAILURE;
++		}
++	}
++	const int result = minipro_main(argc, argv);
++	for (int index = 0; index < argc; ++index)
++		free(argv[index]);
++	free(argv);
++	return result;
++}
++#else
++int main(int argc, char **argv)
++{
++	return minipro_main(argc, argv);
++}
++#endif
+diff --git a/src/win_utf8_paths.h b/src/win_utf8_paths.h
+new file mode 100644
+--- /dev/null
++++ b/src/win_utf8_paths.h
+@@ -0,0 +1,36 @@
++/* SPDX-License-Identifier: GPL-3.0-or-later */
++#ifndef MINIPRO_WIN_UTF8_PATHS_H
++#define MINIPRO_WIN_UTF8_PATHS_H
++#ifdef _WIN32
++#include <windows.h>
++#include <stdio.h>
++#include <sys/stat.h>
++#include <stdlib.h>
++
++static wchar_t *minipro_utf8_to_wide(const char *name) {
++  if (!name) return NULL;
++  const int size = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name, -1,
++                                       NULL, 0);
++  if (!size) return NULL;
++  wchar_t *wide = (wchar_t *)malloc((size_t)size * sizeof(*wide));
++  if (!wide) return NULL;
++  if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name, -1, wide,
++                           size)) { free(wide); return NULL; }
++  return wide;
++}
++static FILE *minipro_fopen_utf8(const char *name, const char *mode) {
++  wchar_t *wide_name = minipro_utf8_to_wide(name);
++  wchar_t *wide_mode = minipro_utf8_to_wide(mode);
++  FILE *result = wide_name && wide_mode ? _wfopen(wide_name, wide_mode) : NULL;
++  free(wide_name); free(wide_mode); return result;
++}
++static int minipro_stat_utf8(const char *name, struct stat *result) {
++  wchar_t *wide_name = minipro_utf8_to_wide(name);
++  if (!wide_name) return -1;
++  const int status = _wstat(wide_name, result);
++  free(wide_name); return status;
++}
++#define fopen(name, mode) minipro_fopen_utf8((name), (mode))
++#define stat(name, result) minipro_stat_utf8((name), (result))
++#endif
++#endif

@@ -15,6 +15,16 @@ abstract interface class ProgrammerBackend {
   OperationHandle execute(OperationPlan plan);
 }
 
+/// Optional, user-safe explanation from the most recent discovery attempt.
+///
+/// Discovery deliberately returns no connection until the backend can prove a
+/// single supported programmer is usable. Consumers may use this separate
+/// contract to explain an empty result without making every backend expose
+/// platform-specific states.
+abstract interface class ProgrammerDiscoveryDiagnostics {
+  String? get discoveryReason;
+}
+
 final class BackendCapabilities {
   const BackendCapabilities({
     this.canRead = false,

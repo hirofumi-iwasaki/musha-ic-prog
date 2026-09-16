@@ -191,7 +191,13 @@ final class ProgrammerController extends ChangeNotifier {
       if (_disposed || epoch != _connectionEpoch || backend != _backend) return;
       if (found.length != 1) {
         connectionStatus = ConnectionStatus.disconnected;
-        blockedReason = 'Exactly one programmer must be connected.';
+        final diagnostic = switch (backend) {
+          ProgrammerDiscoveryDiagnostics(:final discoveryReason) =>
+            discoveryReason,
+          _ => null,
+        };
+        blockedReason =
+            diagnostic ?? 'Exactly one programmer must be connected.';
         message = blockedReason;
       } else {
         connection = found.single;

@@ -74,3 +74,15 @@ D24: 2026-09-16、ユーザーが「有効化OKです」と明示承認した。
 INFOIC type 1、byte構成、有効容量、非SMD・直接DIP、型番解決が一意という既存条件を維持する。
 書込み前ブランク確認、自動消去禁止、書込み後全byte照合、各操作の配置確認を維持する。
 この承認は未知のICを自動で操作する指示ではなく、アプリ内の評価操作を有効にする指示である。
+
+## v0.2.0: five-platform portability (2026-09-16)
+
+Accepted implementation baseline: [CROSS_PLATFORM_0.2.0.md](CROSS_PLATFORM_0.2.0.md).
+
+- D25: Five release targets: macOS ARM64, Windows 11 x64/ARM64, Ubuntu 22.04/24.04 x64/ARM64. ARM means native ARM64. Linux distribution baseline follows Binary Editor.
+- D26: Keep shared Dart/controller/UI and pinned minipro protocol implementation. Extract payload/discovery/file-drop/window lifecycle adapters; keep macOS sandbox behavior.
+- D27: Windows uses pinned minipro's existing SetupAPI/WinUSB backend and a Windows discovery probe. Linux/macOS use libusb. Driver GUID/ARM64 binding and Linux udev access are explicit native validation gates.
+- D28: Five complete archives named musha-ic-prog-[OS]-[arch], with matching sources/notices; all required builds must pass before release assets are uploaded as a complete set.
+- D29: Device eligibility and existing operation safeguards remain unchanged. No T56, physical SRAM/logic feature expansion or binary editing in this portability scope. Per-target hardware evidence is required independently of CI.
+
+These decisions extend the 0.1.0 records; they establish the implementation direction, not completed platform support.

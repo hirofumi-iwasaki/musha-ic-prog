@@ -1,0 +1,10 @@
+## SPDX-License-Identifier: GPL-3.0-or-later
+## Derived from minipro/udev/60-minipro.rules at
+## cae74c0607077d6260b24995f5e4c0d0b66a6a2e (GPL-3.0-or-later).
+## TL866A/CS only. uaccess grants the active local session access; plugdev is
+## retained as a fallback for systems without logind. Do not change this to a
+## world-writable rule.
+ACTION!="add|change", GOTO="mushagaeshi_tl866_end"
+SUBSYSTEM!="usb", GOTO="mushagaeshi_tl866_end"
+ATTRS{idVendor}=="04d8", ATTRS{idProduct}=="e11c", TAG+="uaccess", MODE="0660", GROUP="plugdev"
+LABEL="mushagaeshi_tl866_end"

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 abstract interface class ExternalProcess {
@@ -34,6 +35,7 @@ final class IoProcessRunner implements ProcessRunner {
       arguments,
       workingDirectory: workingDirectory,
       environment: environment,
+      runInShell: false,
     ),
   );
 }
@@ -75,7 +77,7 @@ Future<ProcessTranscript> collectProcess(
       final remaining = maximumLogBytes - bytes.length;
       if (remaining > 0) bytes.addAll(chunk.take(remaining));
     }
-    return String.fromCharCodes(bytes);
+    return utf8.decode(bytes, allowMalformed: true);
   }
 
   final output = collect(process.stdout);

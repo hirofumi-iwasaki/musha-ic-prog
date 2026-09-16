@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[CmdletBinding()]
+param(
+  [ValidateSet('x64', 'arm64')] [string]$Architecture,
+  [string]$FlutterBin
+)
+
+$ErrorActionPreference = 'Stop'
+$projectDir = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$nativeSource = Join-Path $projectDir '.tooling\native-src\minipro-cae74c0607077d6260b24995f5e4c0d0b66a6a2e.tar.gz'
+$zlibSource = Join-Path $projectDir '.tooling\native-src\zlib-1.3.2.tar.gz'
+$hostArchitecture = $env:PROCESSOR_ARCHITECTURE.ToLowerInvariant()
+$native = if ($hostArchitecture -eq 'arm64') { 'arm64' } elseif ($hostArchitecture -eq 'amd64') { 'x64' } else { throw "Unsupported Windows host architecture: $hostArchitecture" }
+if (-not $Architecture) { $Architecture = $native }
+if ($Architecture -ne $native) { throw "Native Windows host required (host=$native target=$Architecture)." }
+if (-not $FlutterBin) { $FlutterBin = Join-Path $projectDir '.tooling\flutter\bin\flutter.bat' }
+if (-not (Test-Path $FlutterBin)) { throw "Pinned Flutter SDK is required: $FlutterBin" }
+$dart = Join-Path (Split-Path -Parent $FlutterBin) 'dart.bat'
+if (-not (Test-Path $dart)) { throw "Missing Dart SDK beside Flutter: $dart" }
+
+Set-Location $projectDir
+& (Join-Path $projectDir 'tool\build_native_windows.ps1') -Architecture $Architecture
+if ($LASTEXITCODE -ne 0) { throw 'Native Windows payload build failed.' }
+& $FlutterBin pub get
+if ($LASTEXITCODE -ne 0) { throw 'flutter pub get failed.' }
+& $FlutterBin build windows --release
+if ($LASTEXITCODE -ne 0) { throw 'flutter build windows failed.' }
+$bundle = Join-Path $projectDir "build\windows\$Architecture\runner\Release"
+$app = Join-Path $bundle 'mushagaeshi_ic_programmer.exe'
+if (-not (Test-Path $app)) { throw "Missing complete Windows bundle: $bundle" }
+$nativePrefix = Join-Path $projectDir ".tooling\native-prefix\windows-$Architecture"
+$payloads = @(
+  (Join-Path $nativePrefix 'bin\minipro.exe'), (Join-Path $nativePrefix 'bin\tl866_probe.exe'),
+  (Join-Path $nativePrefix 'resources\minipro\infoic.xml'), (Join-Path $nativePrefix 'resources\minipro\logicic.xml'),
+  (Join-Path $nativePrefix 'BUILD-MANIFEST.txt'))
+foreach ($payload in $payloads) { if (-not (Test-Path $payload)) { throw "Missing native payload: $payload" } }
+$packageNative = Join-Path $bundle 'native'; $packageResources = Join-Path $bundle 'resources\minipro'
+New-Item -ItemType Directory -Force -Path $packageNative, $packageResources | Out-Null
+Copy-Item (Join-Path $nativePrefix 'bin\*.exe') $packageNative -Force
+Copy-Item (Join-Path $nativePrefix 'resources\minipro\*') $packageResources -Force
+Copy-Item (Join-Path $nativePrefix 'BUILD-MANIFEST.txt') (Join-Path $packageResources 'BUILD-MANIFEST.txt') -Force
+
+$expectedMachine = if ($Architecture -eq 'arm64') { 0xaa64 } else { 0x8664 }
+Get-ChildItem $bundle -File -Recurse | Where-Object { $_.Extension -in '.exe', '.dll' } | ForEach-Object {
+  $bytes = [IO.File]::ReadAllBytes($_.FullName); $offset = [BitConverter]::ToInt32($bytes, 0x3c); $machine = [BitConverter]::ToUInt16($bytes, $offset + 4)
+  if ($machine -ne $expectedMachine) { throw ('Unexpected PE architecture in {0}: 0x{1:X4}' -f $_.FullName, $machine) }
+}
+$dumpbin = Get-Command dumpbin.exe -ErrorAction SilentlyContinue
+if (-not $dumpbin) {
+  $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+  if (Test-Path $vswhere) {
+    $installation = (& $vswhere -latest -products * -property installationPath | Select-Object -First 1).Trim()
+    if ($installation) { $dumpbin = Get-ChildItem (Join-Path $installation 'VC\Tools\MSVC') -Filter dumpbin.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 }
+  }
+}
+if (-not $dumpbin) { throw 'Visual Studio dumpbin.exe is required to inspect helper DLL imports.' }
+$dumpbinPath = if ($dumpbin -is [IO.FileInfo]) { $dumpbin.FullName } else { $dumpbin.Source }
+Get-ChildItem (Join-Path $bundle 'native') -Filter *.exe | ForEach-Object {
+  $imports = (& $dumpbinPath /DEPENDENTS $_.FullName) -join "`n"
+  if ($imports -match '(?i)libgcc|libwinpthread|libstdc\+\+|msys-|cygwin') {
+    throw "Native helper has an unsupported tool-runtime import: $($_.Name)"
+  }
+}
+$dist = Join-Path $projectDir 'dist'; New-Item -ItemType Directory -Force -Path $dist | Out-Null
+$stage = Join-Path $dist ('.windows-package.' + [guid]::NewGuid().ToString('N'))
+try {
+  $packageRoot = Join-Path $stage 'mushagaeshi_ic_programmer'; New-Item -ItemType Directory -Force -Path $stage | Out-Null
+  Copy-Item -Recurse -Path $bundle -Destination $packageRoot
+  & $dart run tool/ci/package_sources.dart $packageRoot
+  if ($LASTEXITCODE -ne 0) { throw 'Matching source package creation failed.' }
+  $sourceNative = Join-Path $packageRoot 'SOURCE\third_party\native-sources'; New-Item -ItemType Directory -Force -Path $sourceNative | Out-Null
+  Copy-Item $nativeSource (Join-Path $sourceNative 'minipro-cae74c0607077d6260b24995f5e4c0d0b66a6a2e.tar.gz') -Force
+  Copy-Item $zlibSource (Join-Path $sourceNative 'zlib-1.3.2.tar.gz') -Force
+  Copy-Item (Join-Path $projectDir 'native\windows\minipro-utf8-paths.patch'), (Join-Path $projectDir 'native\windows\tl866_probe_windows.c') $sourceNative -Force
+  & $dart run tool/ci/write_distribution_metadata.dart $packageRoot "windows-$Architecture" $FlutterBin
+  if ($LASTEXITCODE -ne 0) { throw 'Distribution metadata generation failed.' }
+  & $dart run tool/ci/write_checksums.dart $packageRoot
+  if ($LASTEXITCODE -ne 0) { throw 'Checksum generation failed.' }
+  $archive = Join-Path $dist "musha-ic-prog-windows-$Architecture.zip"; Remove-Item -Force -ErrorAction SilentlyContinue $archive
+  Compress-Archive -Path $packageRoot -DestinationPath $archive -CompressionLevel Optimal
+  Write-Host "Windows package ready: $archive"
+} finally { Remove-Item -Force -Recurse -ErrorAction SilentlyContinue $stage }

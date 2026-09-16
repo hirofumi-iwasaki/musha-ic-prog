@@ -98,7 +98,13 @@ void main() {
     () async {
       final root = await _bundle();
       addTearDown(() => root.delete(recursive: true));
-      final runner = _FakeRunner([_FakeProcess('{"count":2,"devices":[]}')]);
+      final runner = _FakeRunner([
+        _FakeProcess(
+          '{"count":2,"devices":[{"vendorId":"04d8","productId":"e11c",'
+          '"bus":1,"address":2},{"vendorId":"04d8","productId":"e11c",'
+          '"bus":1,"address":3}]}',
+        ),
+      ]);
       final backend = MiniproTl866Backend(
         paths: MiniproBundlePaths(
           executable: '${root.path}/minipro',
@@ -109,6 +115,7 @@ void main() {
         runner: runner,
       );
       expect(await backend.scan(), isEmpty);
+      expect(backend.discoveryReason, contains('More than one'));
       expect(runner.calls, hasLength(1));
     },
   );
@@ -151,6 +158,98 @@ void main() {
     expect(caps.reason, contains('not approved'));
     expect(runner.calls, isEmpty);
   });
+  group('native payload locator', () {
+    test('preserves the macOS app bundle layout', () {
+      final paths = NativePayloadLocator(
+        resolvedExecutable: '/Applications/Musha.app/Contents/MacOS/musha',
+        operatingSystem: 'macos',
+      ).locate();
+      expect(
+        paths.executable,
+        '/Applications/Musha.app/Contents/MacOS/minipro',
+      );
+      expect(paths.probe, '/Applications/Musha.app/Contents/MacOS/tl866_probe');
+      expect(
+        paths.infoic,
+        '/Applications/Musha.app/Contents/Resources/minipro/infoic.xml',
+      );
+    });
+
+    test('uses portable Windows and Linux package layouts', () {
+      final windows = NativePayloadLocator(
+        resolvedExecutable:
+            r'C:\Program Files\Musha\mushagaeshi_ic_programmer.exe',
+        operatingSystem: 'windows',
+      ).locate();
+      expect(windows.executable, r'C:\Program Files\Musha\native\minipro.exe');
+      expect(windows.probe, r'C:\Program Files\Musha\native\tl866_probe.exe');
+      expect(
+        windows.logicic,
+        r'C:\Program Files\Musha\resources\minipro\logicic.xml',
+      );
+      final linux = NativePayloadLocator(
+        resolvedExecutable: '/opt/musha/mushagaeshi_ic_programmer',
+        operatingSystem: 'linux',
+      ).locate();
+      expect(linux.executable, '/opt/musha/native/minipro');
+      expect(linux.probe, '/opt/musha/native/tl866_probe');
+    });
+  });
+
+  test('scan keeps a Windows SetupAPI identity opaque', () async {
+    final root = await _bundle();
+    addTearDown(() => root.delete(recursive: true));
+    final runner = _FakeRunner([
+      _FakeProcess(
+        '{"count":1,"devices":[{"vendorId":"04d8","productId":"e11c",'
+        '"identity":"\\\\?\\\\usb#vid_04d8&pid_e11c#opaque",'
+        '"interfaceReady":true,"driverService":"WinUSB"}]}',
+      ),
+      _FakeProcess('', err: 'tl866a: TL866CS'),
+      _FakeProcess('Found TL866CS 03.2.86 (0x256)'),
+    ]);
+    final backend = MiniproTl866Backend(
+      paths: MiniproBundlePaths(
+        executable: '${root.path}/minipro',
+        probe: '${root.path}/probe',
+        infoic: '${root.path}/infoic.xml',
+        logicic: '${root.path}/logicic.xml',
+      ),
+      runner: runner,
+      operatingSystem: 'windows',
+    );
+    final result = await backend.scan();
+    expect(result, hasLength(1));
+    expect(result.single.identifier, startsWith('usb-'));
+    expect(result.single.identifier, isNot(contains('vid_04d8')));
+  });
+
+  test(
+    'scan reports a Windows driver readiness problem without minipro',
+    () async {
+      final root = await _bundle();
+      addTearDown(() => root.delete(recursive: true));
+      final runner = _FakeRunner([
+        _FakeProcess(
+          '{"count":1,"devices":[{"vendorId":"04d8","productId":"e11c",'
+          '"identity":"opaque","interfaceReady":false,"driverService":"usbccgp"}]}',
+        ),
+      ]);
+      final backend = MiniproTl866Backend(
+        paths: MiniproBundlePaths(
+          executable: '${root.path}/minipro',
+          probe: '${root.path}/probe',
+          infoic: '${root.path}/infoic.xml',
+          logicic: '${root.path}/logicic.xml',
+        ),
+        runner: runner,
+        operatingSystem: 'windows',
+      );
+      expect(await backend.scan(), isEmpty);
+      expect(backend.discoveryReason, contains('WinUSB'));
+      expect(runner.calls, hasLength(1));
+    },
+  );
   operationContractTests();
 }
 
