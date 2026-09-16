@@ -62,7 +62,14 @@ tool/build_windows.ps1 -Architecture x64 -FlutterBin C:\path\to\flutter\bin\flut
 The native build copies the verified minipro archive from
 `third_party/minipro/source/`, applies the SRAM overlay and
 `native/windows/minipro-utf8-paths.patch`, and builds minipro plus the
-SetupAPI probe with pinned LLVM-MinGW. It builds pinned zlib statically.
+SetupAPI probe with pinned LLVM-MinGW. Windows explicitly selects
+`src/usb_nix.c` instead of the legacy TL866A/CS vendor-driver transport in
+`src/usb_win.c`. It builds pinned zlib statically and libusb 1.0.29 as a shared
+DLL using Visual Studio MSBuild (`Release-MT`, v143, matching x64/ARM64 target).
+The libusb archive is SHA-256 verified using `third_party/libusb/UPSTREAM.toml`'s
+pinned hash. The DLL is installed beside `native/minipro.exe`; packaging checks
+both its PE architecture and MiniPro's libusb import. The matching libusb source
+archive and LGPL license are included in the distribution.
 No MSYS/Cygwin runtime is included. The original native archives, patch,
 probe and rebuild scripts are retained under `SOURCE/` in the ZIP.
 Driver binding is a separate manual setup and hardware acceptance step;

@@ -229,17 +229,44 @@ void main() {
     expect(result, hasLength(1));
     expect(result.single.identifier, startsWith('usb-'));
     expect(result.single.identifier, isNot(contains('vid_04d8')));
+    expect(backend.discoveryReason, isNull);
+  });
+
+  test('scan explains a legacy Windows driver binding without invoking minipro', () async {
+    final root = await _bundle();
+    addTearDown(() => root.delete(recursive: true));
+    final runner = _FakeRunner([
+      _FakeProcess(
+        '{"count":1,"devices":[{"vendorId":"04d8","productId":"e11c",'
+        '"identity":"opaque","interfaceReady":false,"driverService":"usbccgp",'
+        '"reason":"bindingUnsupported"}]}',
+      ),
+    ]);
+    final backend = MiniproTl866Backend(
+      paths: MiniproBundlePaths(
+        executable: '${root.path}/minipro',
+        probe: '${root.path}/probe',
+        infoic: '${root.path}/infoic.xml',
+        logicic: '${root.path}/logicic.xml',
+      ),
+      runner: runner,
+      operatingSystem: 'windows',
+    );
+    expect(await backend.scan(), isEmpty);
+    expect(backend.discoveryReason, contains('rather than WinUSB'));
+    expect(backend.discoveryReason, contains('WINDOWS_USB_SETUP.md'));
+    expect(runner.calls, hasLength(1));
   });
 
   test(
-    'scan reports a Windows driver readiness problem without minipro',
+    'scan explains a missing Windows driver binding without minipro',
     () async {
       final root = await _bundle();
       addTearDown(() => root.delete(recursive: true));
       final runner = _FakeRunner([
         _FakeProcess(
           '{"count":1,"devices":[{"vendorId":"04d8","productId":"e11c",'
-          '"identity":"opaque","interfaceReady":false,"driverService":"usbccgp"}]}',
+          '"identity":"opaque","interfaceReady":false,"driverService":""}]}',
         ),
       ]);
       final backend = MiniproTl866Backend(
@@ -253,8 +280,61 @@ void main() {
         operatingSystem: 'windows',
       );
       expect(await backend.scan(), isEmpty);
-      expect(backend.discoveryReason, contains('WinUSB'));
+      expect(backend.discoveryReason, contains('No USB driver service'));
       expect(runner.calls, hasLength(1));
+    },
+  );
+
+  test('scan reports denied libusb access after a ready Windows binding', () async {
+    final root = await _bundle();
+    addTearDown(() => root.delete(recursive: true));
+    final runner = _FakeRunner([
+      _FakeProcess(
+        '{"count":1,"devices":[{"vendorId":"04d8","productId":"e11c",'
+        '"identity":"opaque","interfaceReady":true,"driverService":"WinUSB"}]}',
+      ),
+      _FakeProcess('', err: 'libusb: LIBUSB_ERROR_ACCESS'),
+    ]);
+    final backend = MiniproTl866Backend(
+      paths: MiniproBundlePaths(
+        executable: '${root.path}/minipro',
+        probe: '${root.path}/probe',
+        infoic: '${root.path}/infoic.xml',
+        logicic: '${root.path}/logicic.xml',
+      ),
+      runner: runner,
+      operatingSystem: 'windows',
+    );
+    expect(await backend.scan(), isEmpty);
+    expect(backend.discoveryReason, contains('libusb access was denied'));
+    expect(runner.calls, hasLength(2));
+  });
+
+  test(
+    'scan reports Linux udev access guidance after descriptor discovery',
+    () async {
+      final root = await _bundle();
+      addTearDown(() => root.delete(recursive: true));
+      final runner = _FakeRunner([
+        _FakeProcess(
+          '{"count":1,"devices":[{"vendorId":"04d8","productId":"e11c",'
+          '"bus":1,"address":2}]}',
+        ),
+        _FakeProcess('', err: 'libusb: LIBUSB_ERROR_ACCESS'),
+      ]);
+      final backend = MiniproTl866Backend(
+        paths: MiniproBundlePaths(
+          executable: '${root.path}/minipro',
+          probe: '${root.path}/probe',
+          infoic: '${root.path}/infoic.xml',
+          logicic: '${root.path}/logicic.xml',
+        ),
+        runner: runner,
+        operatingSystem: 'linux',
+      );
+      expect(await backend.scan(), isEmpty);
+      expect(backend.discoveryReason, contains('udev rule'));
+      expect(runner.calls, hasLength(2));
     },
   );
   operationContractTests();

@@ -9,6 +9,9 @@ $ErrorActionPreference = 'Stop'
 $projectDir = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $nativeSource = Join-Path $projectDir '.tooling\native-src\minipro-cae74c0607077d6260b24995f5e4c0d0b66a6a2e.tar.gz'
 $expectedSourceHash = '6363acb0b69f6038ff7a64a751bd2b4fa671debde487c83fd4c5c876c95175af'
+$libusbArchive = Join-Path $projectDir '.tooling\native-src\libusb-1.0.29.tar.bz2'
+$libusbHash = '5977fc950f8d1395ccea9bd48c06b3f808fd3c2c961b44b0c2e6e29fc3a70a85'
+$libusbUrl = 'https://github.com/libusb/libusb/releases/download/v1.0.29/libusb-1.0.29.tar.bz2'
 $toolchainVersion = '20240619'
 $toolchainArchive = Join-Path $projectDir ".tooling\native-src\llvm-mingw-$toolchainVersion-ucrt-x86_64.zip"
 $toolchainUrl = "https://github.com/mstorsjo/llvm-mingw/releases/download/$toolchainVersion/llvm-mingw-$toolchainVersion-ucrt-x86_64.zip"
@@ -50,6 +53,7 @@ $env:PATH = "$(Join-Path $ToolchainRoot 'bin');$env:PATH"
 
 $source = Join-Path $projectDir ('.tooling\minipro-windows-' + [guid]::NewGuid().ToString('N'))
 $zlibSource = Join-Path ([IO.Path]::GetTempPath()) ('musha-zlib-' + [guid]::NewGuid().ToString('N'))
+$libusbSource = Join-Path ([IO.Path]::GetTempPath()) ('musha-libusb-' + [guid]::NewGuid().ToString('N'))
 try {
   $scriptPosix = (& $gitBash -lc 'cygpath -u "$1"' -- (Join-Path $projectDir 'tool\materialize_minipro_sram.sh')).Trim()
   $sourcePosix = (& $gitBash -lc 'cygpath -u "$1"' -- $source).Trim()
@@ -58,6 +62,29 @@ try {
   $relativeSource = '.tooling/' + (Split-Path -Leaf $source)
   & git -C $projectDir apply "--directory=$relativeSource" (Join-Path $projectDir 'native\windows\minipro-utf8-paths.patch')
   if ($LASTEXITCODE -ne 0) { throw 'MiniPro UTF-8 Windows path patch failed.' }
+  if (-not (Test-Path $libusbArchive)) { Invoke-WebRequest -Uri $libusbUrl -OutFile $libusbArchive }
+  if ((Get-FileHash -Algorithm SHA256 $libusbArchive).Hash.ToLowerInvariant() -ne $libusbHash) { throw 'Pinned libusb archive hash mismatch.' }
+  New-Item -ItemType Directory -Path $libusbSource | Out-Null
+  & $windowsTar -xjf $libusbArchive -C $libusbSource --strip-components=1
+  if ($LASTEXITCODE -ne 0) { throw 'libusb source extraction failed.' }
+  $msbuild = Get-Command msbuild.exe -ErrorAction SilentlyContinue
+  if (-not $msbuild) {
+    $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+    if (Test-Path $vswhere) {
+      $installation = (& $vswhere -latest -products * -property installationPath | Select-Object -First 1).Trim()
+      if ($installation) { $msbuild = Get-ChildItem (Join-Path $installation 'MSBuild\Current\Bin') -Filter MSBuild.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 }
+    }
+  }
+  if (-not $msbuild) { throw 'Visual Studio MSBuild is required for pinned libusb Windows DLL build.' }
+  $vsPlatform = if ($Architecture -eq 'arm64') { 'ARM64' } else { 'x64' }
+  $msbuildPath = if ($msbuild -is [IO.FileInfo]) { $msbuild.FullName } else { $msbuild.Source }
+  # Release-MT keeps the helper-local libusb DLL independent of the Flutter
+  # bundle's app-root MSVC runtime DLL search path while remaining a DLL.
+  & $msbuildPath (Join-Path $libusbSource 'msvc\libusb_dll.vcxproj') /t:Build /p:Configuration=Release-MT "/p:Platform=$vsPlatform" /p:PlatformToolset=v143
+  if ($LASTEXITCODE -ne 0) { throw 'Pinned libusb Windows DLL build failed.' }
+  $libusbDll = Get-ChildItem $libusbSource -Filter libusb-1.0.dll -Recurse | Select-Object -First 1
+  $libusbImport = Get-ChildItem $libusbSource -Filter libusb-1.0.lib -Recurse | Select-Object -First 1
+  if (-not $libusbDll -or -not $libusbImport) { throw 'Pinned libusb build did not produce DLL/import library.' }
   if (-not (Test-Path $zlibArchive)) { Invoke-WebRequest -Uri $zlibUrl -OutFile $zlibArchive }
   if ((Get-FileHash -Algorithm SHA256 $zlibArchive).Hash.ToLowerInvariant() -ne $zlibHash) { throw 'Pinned zlib archive hash mismatch.' }
   New-Item -ItemType Directory -Path $zlibSource | Out-Null
@@ -74,10 +101,15 @@ try {
   Copy-Item (Join-Path $zlibBuild 'libz.a') (Join-Path $zlibInclude 'libz.a') -Force
   $env:OS = 'Windows_NT'
   & $make.Source -C $source 'PKG_CONFIG=/bin/true' clean
-  & $make.Source -C $source 'PKG_CONFIG=/bin/true' 'GIT_BRANCH=pinned' 'SHARE_INSTDIR=resources/minipro' "CC=$triple-clang" 'CFLAGS=-O2 -DNDEBUG -Isrc/zlib' 'LDFLAGS=-municode -static-libgcc -Lsrc/zlib'
+  $libusbInclude = (Join-Path $libusbSource 'libusb').Replace('\', '/')
+  $libusbLibDir = $libusbImport.DirectoryName.Replace('\', '/')
+  $libusbIncludeForMake = $libusbInclude.Replace(' ', '\ ')
+  $libusbLibDirForMake = $libusbLibDir.Replace(' ', '\ ')
+  & $make.Source -C $source 'PKG_CONFIG=/bin/true' 'GIT_BRANCH=pinned' 'SHARE_INSTDIR=resources/minipro' 'USB=src/usb_nix.o' "CC=$triple-clang" "CFLAGS=-O2 -DNDEBUG -Isrc/zlib -I$libusbIncludeForMake" "LDFLAGS=-municode -static-libgcc -Lsrc/zlib -L$libusbLibDirForMake" 'LIBS=-lusb-1.0 -lz -lshlwapi -lshell32'
   if ($LASTEXITCODE -ne 0) { throw 'MiniPro cross-build failed.' }
   New-Item -ItemType Directory -Force -Path (Join-Path $prefix 'bin'), (Join-Path $prefix 'resources\minipro') | Out-Null
   Copy-Item (Join-Path $source 'minipro.exe') (Join-Path $prefix 'bin\minipro.exe') -Force
+  Copy-Item $libusbDll.FullName (Join-Path $prefix 'bin\libusb-1.0.dll') -Force
   & $clang -O2 -DNDEBUG (Join-Path $projectDir 'native\windows\tl866_probe_windows.c') -lsetupapi -o (Join-Path $prefix 'bin\tl866_probe.exe')
   if ($LASTEXITCODE -ne 0) { throw 'Windows SetupAPI probe build failed.' }
   Copy-Item (Join-Path $source 'infoic.xml'), (Join-Path $source 'logicic.xml'), (Join-Path $source 'LICENSE'), (Join-Path $source 'README.md') (Join-Path $prefix 'resources\minipro') -Force
@@ -86,6 +118,6 @@ try {
     $bytes = [IO.File]::ReadAllBytes($_.FullName); $offset = [BitConverter]::ToInt32($bytes, 0x3c); $machine = [BitConverter]::ToUInt16($bytes, $offset + 4)
     if ($machine -ne $expectedMachine) { throw ('Unexpected PE architecture in {0}: 0x{1:X4}' -f $_.Name, $machine) }
   }
-  @("target_architecture=$Architecture", "minipro_commit=cae74c0607077d6260b24995f5e4c0d0b66a6a2e", "llvm_mingw_version=$toolchainVersion", "llvm_mingw_sha256=$toolchainHash", "llvm_mingw_host=x86_64", "zlib_version=$zlibVersion", "zlib_sha256=$zlibHash", "utf8_path_patch=minipro-utf8-paths.patch") | Set-Content -Encoding utf8 (Join-Path $prefix 'BUILD-MANIFEST.txt')
+  @("target_architecture=$Architecture", "minipro_commit=cae74c0607077d6260b24995f5e4c0d0b66a6a2e", "transport=libusb-winusb", "libusb_version=1.0.29", "libusb_sha256=$libusbHash", "llvm_mingw_version=$toolchainVersion", "llvm_mingw_sha256=$toolchainHash", "llvm_mingw_host=x86_64", "zlib_version=$zlibVersion", "zlib_sha256=$zlibHash", "utf8_path_patch=minipro-utf8-paths.patch") | Set-Content -Encoding utf8 (Join-Path $prefix 'BUILD-MANIFEST.txt')
   Write-Host "Built native Windows $Architecture payload at $prefix"
-} finally { if (Test-Path $source) { Remove-Item -Recurse -Force $source }; if (Test-Path $zlibSource) { Remove-Item -Recurse -Force $zlibSource } }
+} finally { if (Test-Path $source) { Remove-Item -Recurse -Force $source }; if (Test-Path $zlibSource) { Remove-Item -Recurse -Force $zlibSource }; if (Test-Path $libusbSource) { Remove-Item -Recurse -Force $libusbSource } }

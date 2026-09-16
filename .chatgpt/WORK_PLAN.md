@@ -115,13 +115,13 @@ Accepted design and detailed gates: [CROSS_PLATFORM_0.2.0.md](CROSS_PLATFORM_0.2
 
 - [x] Create branch from updated main; inspect Binary Editor and pinned minipro source.
 - [x] Define five-platform matrix, USB/driver approach, packaging and acceptance gates.
-- [ ] P0: All native helpers compile and offline checks pass; physical Windows driver GUID validation remains pending.
+- [ ] P0: All native helpers compile and offline checks pass; physical Windows WinUSB/libusb validation remains pending.
 - [x] P1: Shared platform contracts and automated macOS regression (analysis, tests and package build).
 - [ ] P2: Native runners, icons and all five bundles are complete; clean consumer desktop acceptance remains pending.
 - [ ] P3: USB discovery/permission/model readiness on each target.
 - [ ] P4: Per-target UI and approved IC read/verify/write acceptance.
 - [ ] P5: Same-commit five-artifact workflow and English documentation are implemented and CI passed; physical acceptance and a future public release remain pending.
 
-Implementation and automated build validation are complete at version `0.2.0+2`. Native Windows and Linux runners, shared platform contracts, packaging scripts and the five-target Actions matrix are implemented. Follow the [implementation record](IMPLEMENTATION_0.2.0.md) for build evidence and outstanding hardware gates. No v0.2.0 release has been published.
+Implementation and automated build validation are complete at version `0.2.0+2`. Native Windows and Linux runners, shared platform contracts, packaging scripts and the five-target Actions matrix are implemented. Follow the [implementation record](IMPLEMENTATION_0.2.0.md) for build evidence and outstanding hardware gates. The initial v0.2.0 Release was subsequently published and withdrawn after the Windows transport issue (D30); its tag is retained.
 
 Automated result: [run 35069146880](https://github.com/hirofumi-iwasaki/musha-ic-prog/actions/runs/35069146880), implementation commit `e383f61`, all five builds plus both Ubuntu 24.04 runtime checks passed. P3/P4 are deliberately not marked complete by CI results.

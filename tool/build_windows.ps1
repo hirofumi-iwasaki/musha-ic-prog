@@ -8,6 +8,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $projectDir = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $nativeSource = Join-Path $projectDir '.tooling\native-src\minipro-cae74c0607077d6260b24995f5e4c0d0b66a6a2e.tar.gz'
+$libusbSource = Join-Path $projectDir '.tooling\native-src\libusb-1.0.29.tar.bz2'
 $zlibSource = Join-Path $projectDir '.tooling\native-src\zlib-1.3.2.tar.gz'
 $hostArchitecture = $env:PROCESSOR_ARCHITECTURE.ToLowerInvariant()
 $native = if ($hostArchitecture -eq 'arm64') { 'arm64' } elseif ($hostArchitecture -eq 'amd64') { 'x64' } else { throw "Unsupported Windows host architecture: $hostArchitecture" }
@@ -30,19 +31,24 @@ $app = Join-Path $bundle 'mushagaeshi_ic_programmer.exe'
 if (-not (Test-Path $app)) { throw "Missing complete Windows bundle: $bundle" }
 $nativePrefix = Join-Path $projectDir ".tooling\native-prefix\windows-$Architecture"
 $payloads = @(
-  (Join-Path $nativePrefix 'bin\minipro.exe'), (Join-Path $nativePrefix 'bin\tl866_probe.exe'),
+  (Join-Path $nativePrefix 'bin\minipro.exe'), (Join-Path $nativePrefix 'bin\tl866_probe.exe'), (Join-Path $nativePrefix 'bin\libusb-1.0.dll'),
   (Join-Path $nativePrefix 'resources\minipro\infoic.xml'), (Join-Path $nativePrefix 'resources\minipro\logicic.xml'),
   (Join-Path $nativePrefix 'BUILD-MANIFEST.txt'))
 foreach ($payload in $payloads) { if (-not (Test-Path $payload)) { throw "Missing native payload: $payload" } }
 $packageNative = Join-Path $bundle 'native'; $packageResources = Join-Path $bundle 'resources\minipro'
 New-Item -ItemType Directory -Force -Path $packageNative, $packageResources | Out-Null
-Copy-Item (Join-Path $nativePrefix 'bin\*.exe') $packageNative -Force
+Copy-Item (Join-Path $nativePrefix 'bin\*.exe'), (Join-Path $nativePrefix 'bin\*.dll') $packageNative -Force
 Copy-Item (Join-Path $nativePrefix 'resources\minipro\*') $packageResources -Force
+Copy-Item (Join-Path $projectDir 'native\windows\README.md') (Join-Path $packageResources 'WINDOWS_USB_SETUP.md') -Force
 Copy-Item (Join-Path $nativePrefix 'BUILD-MANIFEST.txt') (Join-Path $packageResources 'BUILD-MANIFEST.txt') -Force
 $miniproSmoke = Join-Path $packageNative 'minipro.exe'
 $miniproOutput = & $miniproSmoke --help 2>&1
 if ($LASTEXITCODE -ne 1 -or (($miniproOutput -join "`n") -notmatch 'Usage:')) {
   throw 'Packaged MiniPro offline help smoke check failed.'
+}
+$connectionOutput = & $miniproSmoke -k 2>&1
+if ($env:GITHUB_ACTIONS -and ($LASTEXITCODE -eq 0 -or (($connectionOutput -join "`n") -notmatch 'No programmer found\.'))) {
+  throw 'CI MiniPro libusb enumeration smoke check did not report the expected absent programmer.'
 }
 # Exercise UTF-16 command-line -> UTF-8 -> UTF-16 file access without USB I/O.
 $unicodeDatabase = Join-Path ([IO.Path]::GetTempPath()) ('musha 日本語 path ' + [guid]::NewGuid().ToString('N'))
@@ -109,6 +115,10 @@ Get-ChildItem (Join-Path $bundle 'native') -Filter *.exe | ForEach-Object {
     throw "Native helper has an unsupported tool-runtime import: $($_.Name)"
   }
 }
+$miniproImports = Get-DumpbinImports (Join-Path $bundle 'native\minipro.exe')
+if ($miniproImports -notmatch '(?im)^\s*libusb-1\.0\.dll\s*$') {
+  throw 'MiniPro does not import the bundled libusb-1.0.dll transport.'
+}
 $dist = Join-Path $projectDir 'dist'; New-Item -ItemType Directory -Force -Path $dist | Out-Null
 $stage = Join-Path $dist ('.windows-package.' + [guid]::NewGuid().ToString('N'))
 try {
@@ -131,6 +141,7 @@ try {
   if ($LASTEXITCODE -ne 0) { throw 'Matching source package creation failed.' }
   $sourceNative = Join-Path $packageRoot 'SOURCE\third_party\native-sources'; New-Item -ItemType Directory -Force -Path $sourceNative | Out-Null
   Copy-Item $nativeSource (Join-Path $sourceNative 'minipro-cae74c0607077d6260b24995f5e4c0d0b66a6a2e.tar.gz') -Force
+  Copy-Item $libusbSource (Join-Path $sourceNative 'libusb-1.0.29.tar.bz2') -Force
   Copy-Item $zlibSource (Join-Path $sourceNative 'zlib-1.3.2.tar.gz') -Force
   Copy-Item (Join-Path $projectDir 'native\windows\minipro-utf8-paths.patch'), (Join-Path $projectDir 'native\windows\tl866_probe_windows.c') $sourceNative -Force
   & $dart run tool/ci/write_distribution_metadata.dart $packageRoot "windows-$Architecture" $FlutterBin

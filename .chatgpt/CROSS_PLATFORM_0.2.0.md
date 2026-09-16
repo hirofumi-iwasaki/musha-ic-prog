@@ -35,7 +35,7 @@ Current IC Programmer portability seams:
 - Catalog and eligibility mapping are shared Dart logic and must remain identical across targets.
 - Existing scripts build an ARM64 native payload, sign a macOS bundle and copy selected macOS sources. New runners and all platform build inputs must be included in corresponding-source packages.
 
-**Pinned upstream source finding:** minipro `cae74c0607077d6260b24995f5e4c0d0b66a6a2e` (0.7.4) selects `src/usb_win.c` when `OS=Windows_NT`, and `src/usb_nix.c` otherwise. Windows uses SetupAPI / WinUSB directly and links zlib; Unix uses libusb and zlib. Windows discovery uses an interface GUID, not merely VID/PID. Do not incorrectly require a Windows libusb DLL for minipro or assume any generic WinUSB installation exposes the required interface GUID. Findings were checked against the pinned source archive, not just an arbitrary local checkout.
+**Corrected source finding (D30):** pinned `src/usb_win.c` uses legacy vendor IOCTLs for TL866A/CS; its WinUSB path is for other models. The initial assumption below has been superseded. Windows now compiles `src/usb_nix.c` with bundled libusb 1.0.29 and a WinUSB driver binding. macOS/Linux retain their libusb transport.
 
 ## 3. Shared architecture
 
@@ -63,11 +63,11 @@ Keep the working `.app` layout, ARM64 helper/libusb payload, sandbox USB entitle
 
 ### Windows
 
-Build Flutter runner/plugins with Visual Studio's native target toolchain. Build pinned minipro's existing WinUSB backend and zlib for each architecture using a pinned MinGW-w64/LLVM-based toolchain; this C build is independent of Flutter's MSVC C++ build because communication is process-based. Prefer one LLVM-MinGW toolchain supporting x64 and ARM64; pin archive/version/hash after the first compilation spike. Build-host shell tools may be used, but shipped EXEs/DLLs must all match the target and must not depend on MSYS/Cygwin runtime installation. If upstream POSIX assumptions prevent compilation, introduce a narrow recorded portability patch, not a second protocol implementation or an emulated helper.
+Build Flutter runner/plugins with Visual Studio's native target toolchain. Build pinned minipro using its libusb transport (`USB=src/usb_nix.o`) and static zlib with LLVM-MinGW. Build libusb as a native Visual Studio Release-MT DLL for each architecture and place it beside minipro.exe. Pin source hashes, inspect PE architectures/imports, and include matching sources/licenses. No MSYS/Cygwin runtime dependency or emulated helper is shipped.
 
-Implement a Windows read-only probe using SetupAPI: enumerate present USB devices and the interface GUID expected by pinned minipro, report VID/PID, opaque identity, interface readiness and driver service. Do not call WinUSB transfers or energize ZIF pins during discovery. VID `04d8` / PID `e11c` covers TL866A/CS; retain the subsequent minipro model/firmware check before allowing TL866CS operations. Reject multiple candidates instead of selecting arbitrarily.
+Implement a Windows read-only SetupAPI probe: enumerate present USB devices by VID `04d8` / PID `e11c`, report instance identity and bound service. WinUSB service readiness is a prerequisite, not proof of successful communication. libusb handles interface discovery; do not require the legacy vendor GUID. Retain the MiniPro model/firmware check and reject multiple candidates. No probe USB transfers or IC operations.
 
-Use Microsoft's WinUSB as the supported kernel driver. Publish explicit setup/recovery instructions after validating both Windows architectures and the required interface GUID. Generic Zadig/WinUSB assignment is a candidate setup method, not proof of compatibility with this pinned backend. Do not auto-replace vendor drivers or disable signature enforcement. The app runs without elevation; driver installation is a separate user action. ARM64 requires an ARM64-compatible signed driver binding even if an installer UI runs under emulation. Driver binding/signature/GUID compatibility is the first hardware gate.
+Use Microsoft's built-in WinUSB kernel driver with explicit Zadig setup instructions for x64/ARM64. Driver assignment is a separate user action; the app runs without elevation and never auto-replaces drivers. Zadig 2.8+ supports ARM64 WinUSB setup. Physical acceptance remains required on both architectures; preserve signature enforcement. See native/windows/README.md.
 
 Portable layout: Flutter EXE/DLLs and `data/` at package root; `native/minipro.exe`, `native/tl866_probe.exe`, and required non-system DLLs together; `resources/minipro/` for databases. Validate direct and transitive DLL dependencies, UCRT/VC runtime prerequisites and clean-system execution. OS WinUSB/SetupAPI DLLs are not redistributed.
 
@@ -101,7 +101,7 @@ Each archive includes licenses/notices, dependency/source manifests, SHA-256 fil
 
 | Phase | Deliverable | Exit criteria |
 | --- | --- | --- |
-| P0 | Native feasibility spike: Windows ARM64 first, then x64 and Linux | Pinned minipro/probe compiled; offline CLI/database lookup; architecture/import inspection; driver GUID plan tested |
+| P0 | Native feasibility spike: Windows ARM64 first, then x64 and Linux | Pinned minipro/probe compiled; offline CLI/database lookup; architecture/import inspection; WinUSB binding and physical opening tested |
 | P1 | Payload locator, discovery errors, file/drop and window adapters | Portable tests pass; macOS regression stays green; no silent mock fallback |
 | P2 | Windows/Linux runners, icons and payloads | All five native builds and clean-system app launch without developer SDKs |
 | P3 | USB integration | Each OS/arch detects one TL866CS, distinguishes permissions/driver errors, rejects wrong/multiple models |
@@ -120,7 +120,7 @@ Reviewed 2026-09-16:
 
 - [Flutter supported platforms](https://docs.flutter.dev/reference/supported-platforms): platform/architecture capability, not project-specific validation.
 - [GitHub hosted runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners): native runner labels; availability must also pass actual CI bootstrap.
-- [libusb Windows notes](https://github.com/libusb/libusb/wiki/Windows): driver binding and WinUSB limitations; the pinned minipro Windows backend itself uses WinUSB directly.
+- [libusb Windows notes](https://github.com/libusb/libusb/wiki/Windows): driver binding and WinUSB limitations; Windows uses the pinned minipro libusb transport after D30.
 - [Microsoft WinUSB installation](https://learn.microsoft.com/en-us/windows-hardware/drivers/usbcon/winusb-installation): driver package/binding requirements.
 - Local pinned minipro archive: `Makefile`, `src/usb_win.c`, `src/usb_nix.c`, `udev/60-minipro.rules`; manifest at `third_party/minipro/UPSTREAM.toml`.
 - Binary Editor references listed in section 2. Its design/status and historical validation are reference material, not validation of this programmer app.

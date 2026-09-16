@@ -1,12 +1,10 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Read-only SetupAPI probe for MiniPro's TL866A/CS interface. */
+/* Read-only TL866A/CS node and WinUSB binding probe. No device is opened. */
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <setupapi.h>
 #include <stdio.h>
 #include <wchar.h>
-
-#define TL866_GUID {0x85980D83,0x32B9,0x4BA1,{0x8F,0xDF,0x12,0xA7,0x11,0xB9,0x9C,0xA2}}
 
 typedef struct { wchar_t *identity; wchar_t *service; int interface_ready; } tl866_device;
 
@@ -23,9 +21,17 @@ static void json_string(const wchar_t *value) {
 }
 
 static int is_tl866(const wchar_t *ids, DWORD bytes) {
-  const wchar_t *limit = (const wchar_t *)((const BYTE *)ids + bytes);
-  for (const wchar_t *id = ids; id < limit && *id; id += wcslen(id) + 1) {
-    if (wcsstr(id, L"VID_04D8&PID_E11C")) return 1;
+  const wchar_t prefix[] = L"USB\\VID_04D8&PID_E11C";
+  const size_t prefix_length = (sizeof(prefix) / sizeof(prefix[0])) - 1;
+  const size_t count = bytes / sizeof(*ids);
+  for (size_t offset = 0; offset < count && ids[offset];) {
+    size_t length = 0;
+    while (offset + length < count && ids[offset + length]) ++length;
+    if (offset + length == count) return 0; /* Malformed MULTI_SZ. */
+    if (length >= prefix_length &&
+        _wcsnicmp(ids + offset, prefix, prefix_length) == 0 &&
+        (length == prefix_length || ids[offset + prefix_length] == L'&')) return 1;
+    offset += length + 1;
   }
   return 0;
 }
@@ -50,23 +56,6 @@ static wchar_t *driver_service(HDEVINFO set, SP_DEVINFO_DATA *device) {
   return value;
 }
 
-static int contains_instance(wchar_t **items, size_t count, const wchar_t *identity) {
-  for (size_t index = 0; index < count; ++index) if (_wcsicmp(items[index], identity) == 0) return 1;
-  return 0;
-}
-
-static int append_instance(wchar_t ***items, size_t *count, size_t *capacity, wchar_t *identity) {
-  if (*count == *capacity) {
-    size_t next = *capacity ? *capacity * 2 : 4;
-    wchar_t **expanded = *items
-      ? HeapReAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, *items, next * sizeof(*expanded))
-      : HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, next * sizeof(*expanded));
-    if (!expanded) return 0;
-    *items = expanded; *capacity = next;
-  }
-  (*items)[(*count)++] = identity; return 1;
-}
-
 static int append_device(tl866_device **items, size_t *count, size_t *capacity, wchar_t *identity, wchar_t *service, int ready) {
   if (*count == *capacity) {
     size_t next = *capacity ? *capacity * 2 : 4;
@@ -79,39 +68,23 @@ static int append_device(tl866_device **items, size_t *count, size_t *capacity, 
   (*items)[*count] = (tl866_device){ identity, service, ready }; ++*count; return 1;
 }
 
-static void free_instances(wchar_t **items, size_t count) {
-  for (size_t index = 0; index < count; ++index) HeapFree(GetProcessHeap(), 0, items[index]);
-  HeapFree(GetProcessHeap(), 0, items);
-}
-
 static void free_devices(tl866_device *items, size_t count) {
   for (size_t index = 0; index < count; ++index) { HeapFree(GetProcessHeap(), 0, items[index].identity); HeapFree(GetProcessHeap(), 0, items[index].service); }
   HeapFree(GetProcessHeap(), 0, items);
 }
 
 int main(void) {
-  const GUID guid = TL866_GUID;
-  HDEVINFO usb = INVALID_HANDLE_VALUE, interfaces = INVALID_HANDLE_VALUE;
-  wchar_t **ready = NULL; size_t ready_count = 0, ready_capacity = 0;
+  HDEVINFO usb = INVALID_HANDLE_VALUE;
   tl866_device *matches = NULL; size_t match_count = 0, match_capacity = 0;
   int result = 2;
 
   /* Device nodes include TL866 hardware even when it lacks MiniPro's driver. */
   usb = SetupDiGetClassDevsW(NULL, L"USB", NULL, DIGCF_PRESENT | DIGCF_ALLCLASSES);
   if (usb == INVALID_HANDLE_VALUE) goto cleanup;
-  /* The separate interface set identifies bindings acceptable to pinned MiniPro. */
-  interfaces = SetupDiGetClassDevsW(&guid, NULL, NULL, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
-  if (interfaces == INVALID_HANDLE_VALUE) goto cleanup;
-
-  for (DWORD index = 0;; ++index) {
-    SP_DEVICE_INTERFACE_DATA iface = { .cbSize = sizeof(iface) };
-    SP_DEVINFO_DATA device = { .cbSize = sizeof(device) };
-    if (!SetupDiEnumDeviceInterfaces(interfaces, NULL, &guid, index, &iface)) { if (GetLastError() == ERROR_NO_MORE_ITEMS) break; goto cleanup; }
-    DWORD required = 0;
-    if (SetupDiGetDeviceInterfaceDetailW(interfaces, &iface, NULL, 0, &required, &device) || GetLastError() != ERROR_INSUFFICIENT_BUFFER) goto cleanup;
-    wchar_t *identity = instance_id(interfaces, &device);
-    if (!identity || !append_instance(&ready, &ready_count, &ready_capacity, identity)) { HeapFree(GetProcessHeap(), 0, identity); goto cleanup; }
-  }
+  /* libusb discovers the interface GUID registered by the WinUSB installer.
+   * It must not be constrained to the old vendor driver's interface GUID.
+   * A WinUSB service is a prerequisite only; minipro performs the real open
+   * and model check after this descriptor-only discovery step. */
 
   for (DWORD index = 0;; ++index) {
     SP_DEVINFO_DATA device = { .cbSize = sizeof(device) };
@@ -127,7 +100,7 @@ int main(void) {
     if (!tl866) continue;
     wchar_t *identity = instance_id(usb, &device);
     wchar_t *service = driver_service(usb, &device);
-    if (!identity || !service || !append_device(&matches, &match_count, &match_capacity, identity, service, contains_instance(ready, ready_count, identity))) {
+    if (!identity || !service || !append_device(&matches, &match_count, &match_capacity, identity, service, _wcsicmp(service, L"WinUSB") == 0)) {
       HeapFree(GetProcessHeap(), 0, identity); HeapFree(GetProcessHeap(), 0, service); goto cleanup;
     }
   }
@@ -142,9 +115,8 @@ int main(void) {
   fputs("]}\n", stdout); result = 0;
 
 cleanup:
-  if (interfaces != INVALID_HANDLE_VALUE) SetupDiDestroyDeviceInfoList(interfaces);
   if (usb != INVALID_HANDLE_VALUE) SetupDiDestroyDeviceInfoList(usb);
-  free_instances(ready, ready_count); free_devices(matches, match_count);
+  free_devices(matches, match_count);
   if (result) fputs("{\"error\":\"SetupAPI probe failed\"}\n", stdout);
   return result;
 }

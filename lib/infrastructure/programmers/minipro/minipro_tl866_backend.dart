@@ -158,40 +158,70 @@ final class MiniproTl866Backend
         .toLowerCase();
     if (_operatingSystem == 'windows' &&
         (state.contains('driver') || state.contains('interface'))) {
-      return 'TL866CS driver is not ready. Install the signed WinUSB driver binding for this programmer.';
+      return _winusbSetupReason('The WinUSB interface is unavailable.');
     }
     if (state.contains('permission') || state.contains('access')) {
-      return 'TL866CS was detected but access is denied. Check the USB permission setup and reconnect it.';
+      return _libusbAccessReason();
     }
     return 'No TL866A/CS programmer was detected.';
   }
 
   String _windowsDriverReason(Map item) {
     final service = item['driverService'];
-    final suffix = service is String && service.isNotEmpty
-        ? ' Current driver service: $service.'
-        : '';
-    return 'TL866CS driver is not ready. Install the signed WinUSB driver binding for this programmer.$suffix';
+    final serviceName = service is String ? service.trim() : '';
+    final detail = '${item['reason'] ?? ''}'.toLowerCase();
+    if (serviceName.isEmpty) {
+      return _winusbSetupReason(
+        'No USB driver service is bound to this TL866CS.',
+      );
+    }
+    if (serviceName.toLowerCase() != 'winusb') {
+      return _winusbSetupReason(
+        'TL866CS is using $serviceName rather than WinUSB.',
+      );
+    }
+    if (detail.contains('bindingunsupported')) {
+      return _winusbSetupReason('The current WinUSB binding is not usable.');
+    }
+    return _winusbSetupReason('The WinUSB interface is not ready.');
   }
+
+  String _winusbSetupReason(String detail) =>
+      '$detail Follow resources/minipro/WINDOWS_USB_SETUP.md, then reconnect the programmer.';
 
   String _probeFailureReason(ProcessTranscript probe) {
     final text = '${probe.stderr}\n${probe.stdout}'.toLowerCase();
-    if (text.contains('permission') || text.contains('access denied')) {
-      return 'TL866CS was detected but access is denied. Check the USB permission setup and reconnect it.';
+    if (_isAccessDenied(text)) {
+      return _libusbAccessReason();
+    }
+    if (text.contains('busy') || text.contains('in use')) {
+      return 'TL866CS is busy. Close other programmer software, then reconnect it.';
     }
     return 'TL866CS discovery helper failed: ${_diagnosticText(probe)}';
   }
 
   String _miniproFailureReason(ProcessTranscript result) {
     final text = '${result.stderr}\n${result.stdout}'.toLowerCase();
-    if (text.contains('permission') || text.contains('access denied')) {
-      return 'TL866CS was detected but access is denied. Check the USB permission setup and reconnect it.';
+    if (_isAccessDenied(text)) {
+      return _libusbAccessReason();
+    }
+    if (text.contains('libusb_error_busy') || text.contains('busy')) {
+      return 'TL866CS is busy. Close other programmer software, then reconnect it.';
+    }
+    if (_operatingSystem == 'windows' &&
+        (text.contains('libusb_error_no_device') ||
+            text.contains('no device'))) {
+      return 'TL866CS was disconnected after discovery. Reconnect it, then refresh the connection.';
     }
     if (_operatingSystem == 'windows' &&
         (text.contains('driver') ||
             text.contains('winusb') ||
-            text.contains('interface'))) {
-      return 'TL866CS driver is not ready. Install the signed WinUSB driver binding for this programmer.';
+            text.contains('interface') ||
+            text.contains('guid') ||
+            text.contains('not supported'))) {
+      return _winusbSetupReason(
+        'TL866CS does not have a usable WinUSB interface for libusb.',
+      );
     }
     return 'TL866CS model and firmware check failed: ${_diagnosticText(result)}';
   }
@@ -200,6 +230,18 @@ final class MiniproTl866Backend
     final text = '${result.stderr}\n${result.stdout}'.trim();
     return text.isEmpty ? 'helper exited with ${result.exitCode}.' : text;
   }
+
+  bool _isAccessDenied(String text) =>
+      text.contains('libusb_error_access') ||
+      text.contains('permission') ||
+      text.contains('access denied');
+
+  String _libusbAccessReason() => switch (_operatingSystem) {
+    'windows' => 'TL866CS was detected, but libusb access was denied. Check the WinUSB binding in resources/minipro/WINDOWS_USB_SETUP.md, then reconnect it.',
+    'linux' => 'TL866CS was detected, but libusb access was denied. Install or reload the TL866 udev rule for the current user, then reconnect it.',
+    'macos' => 'TL866CS was detected, but macOS denied USB access. Check the app USB permission and reconnect it.',
+    _ => 'TL866CS was detected, but libusb access was denied. Reconnect it and check USB permissions.',
+  };
 
   @override
   Future<BackendCapabilities> capabilities(

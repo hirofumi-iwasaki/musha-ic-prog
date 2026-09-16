@@ -1,5 +1,19 @@
 # v0.2.0 implementation record
 
+## Windows transport correction and release withdrawal
+
+The initial release failed to communicate on the reported Windows ARM64 setup.
+Source review found that `usb_win.c` uses legacy vendor IOCTLs for TL866A/CS;
+the initial WinUSB assumption was incorrect. The user requested a fix and
+withdrawal: GitHub Release v0.2.0 and its assets were deleted, retaining its tag
+at `941f6f0fc7c33e768c8ae8c81ef0157710a56413` and open PR #2.
+
+The correction selects MiniPro's libusb transport on Windows, bundles libusb
+1.0.29 for each native architecture, removes legacy GUID gating and includes
+WinUSB setup instructions. Prior build evidence below does not validate this
+correction or physical USB communication. Updated validation is recorded below
+when complete. Physical Windows/Linux IC acceptance remains pending.
+
 ## Scope
 
 The accepted five-target design is implemented on `release/0.2.0`: macOS ARM64, Windows x64/ARM64 and Ubuntu x64/ARM64. The version is `0.2.0+2`. This work does not add programmer models, device families or physical SRAM/logic operations.
@@ -37,7 +51,7 @@ The successful run contains exactly these five Actions artifacts, each holding i
 
 The downloaded Windows ARM64 ZIP independently passed all 248 recorded file checksums and checks for matching source/native payloads. Its metadata records the exact implementation commit and a clean source worktree. The earlier Windows x64 ZIP from commit `e4e3f16` also passed all 252 checksums before unused CRT companions were removed.
 
-This evidence records automated compilation and hosted runtime checks, not physical programmer acceptance. No v0.2.0 release was published.
+This evidence records automated compilation and hosted runtime checks, not physical programmer acceptance. The initial v0.2.0 Release was subsequently published and then withdrawn; see the correction below.
 
 ## Outstanding acceptance
 
@@ -48,4 +62,14 @@ Build success is separate from physical support validation. The following remain
 3. Repeat reads and comparison using an approved exact IC profile; blank check and separately authorized destructive programming with complete readback comparison.
 4. Record OS, architecture, application commit, firmware, full IC part number, adapter, source checksum and results in the hardware validation record.
 
-No physical IC operations were executed by the cross-platform CI. Windows driver GUID compatibility is a required acceptance gate, not established by compiling the SetupAPI probe. macOS hardware regression remains separate from package compilation. No v0.2.0 release or merge is performed by this implementation task.
+No physical IC operations were executed by the cross-platform CI. Windows WinUSB/libusb communication is a required acceptance gate, not established by compiling the SetupAPI probe. macOS hardware regression remains separate from package compilation. The withdrawn release tag is retained; republication requires a new user instruction.
+
+## Correction validation before hosted builds
+
+Local static analysis passed and all 60 Flutter tests passed. The corrected
+Windows native sources (20 C translation units per architecture) passed syntax
+checks against the pinned LLVM-MinGW/libusb headers for x64 and ARM64. Packaging
+now checks the libusb DLL import and architecture, includes the USB setup guide
+and matching libusb source/license, and exercises libusb enumeration with no
+programmer attached on hosted Windows runners. Hosted build results follow
+separately; these checks do not validate physical TL866CS operations.
