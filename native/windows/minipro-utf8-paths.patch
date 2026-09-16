@@ -1,13 +1,12 @@
 diff --git a/Makefile b/Makefile
 --- a/Makefile
 +++ b/Makefile
-@@ -103,6 +103,9 @@
+@@ -103,6 +103,8 @@
  override LIBS += -lsetupapi \
                   -lwinusb \
 +				 -lshlwapi \
 +				 -lshell32 \
  				 -lz
-+override CPPFLAGS += -include src/win_utf8_paths.h
  endif
  
  
@@ -58,44 +57,133 @@ diff --git a/src/main.c b/src/main.c
 +	return minipro_main(argc, argv);
 +}
 +#endif
+diff --git a/src/database.c b/src/database.c
+--- a/src/database.c
++++ b/src/database.c
+@@ -28,4 +28,5 @@
+ #include "b64/cdecode.h"
+ #include "xml.h"
+ #include "database.h"
++#include "win_utf8_paths.h"
+ 
+diff --git a/src/main.c b/src/main.c
+--- a/src/main.c
++++ b/src/main.c
+@@ -30,4 +30,5 @@
+ #include <unistd.h>
+ 
+ #include "database.h"
++#include "win_utf8_paths.h"
+ #include "jedec.h"
+diff --git a/src/minipro.c b/src/minipro.c
+--- a/src/minipro.c
++++ b/src/minipro.c
+@@ -23,4 +23,5 @@
+ #include <stdio.h>
+ #include <string.h>
+ #include "database.h"
++#include "win_utf8_paths.h"
+ #include "minipro.h"
+diff --git a/src/t48.c b/src/t48.c
+--- a/src/t48.c
++++ b/src/t48.c
+@@ -26,4 +26,5 @@
+ #include <math.h>
+ 
+ #include "database.h"
++#include "win_utf8_paths.h"
+ #include "minipro.h"
+diff --git a/src/t56.c b/src/t56.c
+--- a/src/t56.c
++++ b/src/t56.c
+@@ -26,4 +26,5 @@
+ #include <time.h>
+ 
+ #include "database.h"
++#include "win_utf8_paths.h"
+ #include "minipro.h"
+diff --git a/src/t76.c b/src/t76.c
+--- a/src/t76.c
++++ b/src/t76.c
+@@ -26,4 +26,5 @@
+ #include <time.h>
+ 
+ #include "database.h"
++#include "win_utf8_paths.h"
+ #include "minipro.h"
+diff --git a/src/tl866a.c b/src/tl866a.c
+--- a/src/tl866a.c
++++ b/src/tl866a.c
+@@ -26,4 +26,5 @@
+ #include <assert.h>
+ 
+ #include "database.h"
++#include "win_utf8_paths.h"
+ #include "minipro.h"
+diff --git a/src/tl866iiplus.c b/src/tl866iiplus.c
+--- a/src/tl866iiplus.c
++++ b/src/tl866iiplus.c
+@@ -25,4 +25,5 @@
+ #include <time.h>
+ 
+ #include "database.h"
++#include "win_utf8_paths.h"
+ #include "minipro.h"
 diff --git a/src/win_utf8_paths.h b/src/win_utf8_paths.h
 new file mode 100644
 --- /dev/null
 +++ b/src/win_utf8_paths.h
-@@ -0,0 +1,36 @@
+@@ -0,0 +1,12 @@
 +/* SPDX-License-Identifier: GPL-3.0-or-later */
 +#ifndef MINIPRO_WIN_UTF8_PATHS_H
 +#define MINIPRO_WIN_UTF8_PATHS_H
-+#ifdef _WIN32
-+#include <windows.h>
 +#include <stdio.h>
 +#include <sys/stat.h>
++#ifdef _WIN32
++FILE *minipro_fopen_utf8(const char *name, const char *mode);
++int minipro_stat_utf8(const char *name, struct stat *result);
++#define fopen(name, mode) minipro_fopen_utf8((name), (mode))
++#define stat(name, result) minipro_stat_utf8((name), (result))
++#endif
++#endif
+diff --git a/Makefile b/Makefile
+--- a/Makefile
++++ b/Makefile
+@@ -60,4 +60,4 @@
+ 		src/bitbang.o src/prom.o src/minipro.o src/tl866a.o \
+ 		src/tl866iiplus.o src/t48.o src/t56.o src/t76.o src/version.o \
+-		src/cdecode.o src/cencode.o $(USB)
++		src/cdecode.o src/cencode.o src/win_utf8_paths.o $(USB)
+ OBJECTS=$(COMMON_OBJECTS) src/main.o
+diff --git a/src/win_utf8_paths.c b/src/win_utf8_paths.c
+new file mode 100644
+--- /dev/null
++++ b/src/win_utf8_paths.c
+@@ -0,0 +1,27 @@
++#include "win_utf8_paths.h"
++#ifdef _WIN32
++#define WIN32_LEAN_AND_MEAN
++#include <windows.h>
 +#include <stdlib.h>
-+
 +static wchar_t *minipro_utf8_to_wide(const char *name) {
 +  if (!name) return NULL;
-+  const int size = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name, -1,
-+                                       NULL, 0);
++  const int size = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name, -1, NULL, 0);
 +  if (!size) return NULL;
-+  wchar_t *wide = (wchar_t *)malloc((size_t)size * sizeof(*wide));
++  wchar_t *wide = malloc((size_t)size * sizeof(*wide));
 +  if (!wide) return NULL;
-+  if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name, -1, wide,
-+                           size)) { free(wide); return NULL; }
++  if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name, -1, wide, size)) { free(wide); return NULL; }
 +  return wide;
 +}
-+static FILE *minipro_fopen_utf8(const char *name, const char *mode) {
++FILE *minipro_fopen_utf8(const char *name, const char *mode) {
 +  wchar_t *wide_name = minipro_utf8_to_wide(name);
 +  wchar_t *wide_mode = minipro_utf8_to_wide(mode);
 +  FILE *result = wide_name && wide_mode ? _wfopen(wide_name, wide_mode) : NULL;
 +  free(wide_name); free(wide_mode); return result;
 +}
-+static int minipro_stat_utf8(const char *name, struct stat *result) {
++int minipro_stat_utf8(const char *name, struct stat *result) {
 +  wchar_t *wide_name = minipro_utf8_to_wide(name);
 +  if (!wide_name) return -1;
-+  const int status = _wstat(wide_name, result);
++  const int status = wstat(wide_name, result);
 +  free(wide_name); return status;
 +}
-+#define fopen(name, mode) minipro_fopen_utf8((name), (mode))
-+#define stat(name, result) minipro_stat_utf8((name), (result))
-+#endif
 +#endif

@@ -1,4 +1,6 @@
-# Rebuilding the bundled macOS native payload
+# Rebuilding the bundled native payload
+
+## macOS ARM64
 
 The initial native payload is **arm64 only**, with a macOS 15.0 deployment
 target. It is not a universal binary and it has not yet passed the physical
@@ -12,7 +14,8 @@ tool/materialize_minipro_sram.sh
 tool/build_native_macos.sh
 ```
 
-The first command downloads the exact official release archives named in
+The first command copies the vendored, verified minipro archive and downloads
+the official libusb release archive named in
 `third_party/libusb/UPSTREAM.toml` and `third_party/minipro/UPSTREAM.toml`,
 then verifies their SHA-256 values. The second creates an ignored full minipro
 source tree from that archive and applies the tracked SRAM overlay. The final
@@ -41,5 +44,26 @@ tool/build_linux.sh arm64
 The portable archive includes the Flutter bundle, helpers, shared libraries,
 databases, matching native source trees, and the TL866A/CS udev rule. Install
 the rule as described in `linux/udev/README.md`; do not run the application as
-root. GTK 3, glibc, and normal Ubuntu desktop dependencies remain system
+root. GTK 3, EGL/OpenGL, LZMA, glibc, and normal Ubuntu desktop dependencies remain system
 requirements and are not bundled.
+
+## Windows x64 and ARM64
+
+Use a native host for the target architecture with Visual Studio C++ desktop
+build tools, Git for Windows, GNU make and the pinned Flutter SDK. CI's
+`tool/ci/bootstrap_flutter.ps1` records the exact SDK revision and checks its
+architecture. From PowerShell:
+
+```powershell
+tool/build_windows.ps1 -Architecture x64 -FlutterBin C:\path\to\flutter\bin\flutter.bat
+# On a Windows ARM64 host, use -Architecture arm64.
+```
+
+The native build copies the verified minipro archive from
+`third_party/minipro/source/`, applies the SRAM overlay and
+`native/windows/minipro-utf8-paths.patch`, and builds minipro plus the
+SetupAPI probe with pinned LLVM-MinGW. It builds pinned zlib statically.
+No MSYS/Cygwin runtime is included. The original native archives, patch,
+probe and rebuild scripts are retained under `SOURCE/` in the ZIP.
+Driver binding is a separate manual setup and hardware acceptance step;
+see `native/windows/README.md`.

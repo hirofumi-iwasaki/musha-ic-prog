@@ -44,6 +44,16 @@ $miniproOutput = & $miniproSmoke --help 2>&1
 if ($LASTEXITCODE -ne 1 -or (($miniproOutput -join "`n") -notmatch 'Usage:')) {
   throw 'Packaged MiniPro offline help smoke check failed.'
 }
+# Exercise UTF-16 command-line -> UTF-8 -> UTF-16 file access without USB I/O.
+$unicodeDatabase = Join-Path ([IO.Path]::GetTempPath()) ('musha 日本語 path ' + [guid]::NewGuid().ToString('N'))
+try {
+  New-Item -ItemType Directory -Path $unicodeDatabase | Out-Null
+  Copy-Item (Join-Path $packageResources 'infoic.xml'), (Join-Path $packageResources 'logicic.xml') $unicodeDatabase
+  $lookup = & $miniproSmoke --infoic (Join-Path $unicodeDatabase 'infoic.xml') --logicic (Join-Path $unicodeDatabase 'logicic.xml') -q tl866a -L 27C512 2>&1
+  if ($LASTEXITCODE -ne 0 -or (($lookup -join "`n") -notmatch '27C512')) {
+    throw 'Packaged MiniPro Unicode database lookup failed.'
+  }
+} finally { if (Test-Path $unicodeDatabase) { Remove-Item -Recurse -Force $unicodeDatabase } }
 $probeSmoke = Join-Path $packageNative 'tl866_probe.exe'
 $probeJson = & $probeSmoke
 if ($LASTEXITCODE -ne 0) { throw 'Packaged SetupAPI probe smoke check failed.' }
@@ -67,8 +77,19 @@ if (-not $dumpbin) {
 }
 if (-not $dumpbin) { throw 'Visual Studio dumpbin.exe is required to inspect helper DLL imports.' }
 $dumpbinPath = if ($dumpbin -is [IO.FileInfo]) { $dumpbin.FullName } else { $dumpbin.Source }
+function Get-DumpbinImports([string]$Path) {
+  $imports = (& $dumpbinPath /DEPENDENTS $Path) -join "`n"
+  if ($LASTEXITCODE -ne 0) { throw "dumpbin dependency inspection failed: $Path" }
+  return $imports
+}
+$appImports = Get-DumpbinImports $app
+foreach ($runtimeName in @([regex]::Matches($appImports, '(?im)^\s*((?:MSVCP|VCRUNTIME|CONCRT)\d+(?:_\d+)?\.DLL)\s*$') | ForEach-Object { $_.Groups[1].Value })) {
+  if (-not (Test-Path (Join-Path $bundle $runtimeName))) {
+    throw "Missing app-local MSVC runtime dependency: $runtimeName"
+  }
+}
 Get-ChildItem (Join-Path $bundle 'native') -Filter *.exe | ForEach-Object {
-  $imports = (& $dumpbinPath /DEPENDENTS $_.FullName) -join "`n"
+  $imports = Get-DumpbinImports $_.FullName
   if ($imports -match '(?i)libgcc|libwinpthread|libstdc\+\+|msys-|cygwin') {
     throw "Native helper has an unsupported tool-runtime import: $($_.Name)"
   }
@@ -78,6 +99,19 @@ $stage = Join-Path $dist ('.windows-package.' + [guid]::NewGuid().ToString('N'))
 try {
   $packageRoot = Join-Path $stage 'mushagaeshi_ic_programmer'; New-Item -ItemType Directory -Force -Path $stage | Out-Null
   Copy-Item -Recurse -Path $bundle -Destination $packageRoot
+  $packagedApp = Join-Path $packageRoot 'mushagaeshi_ic_programmer.exe'
+  $gui = $null
+  try {
+    $gui = Start-Process -FilePath $packagedApp -WorkingDirectory $packageRoot -PassThru
+    Start-Sleep -Seconds 5
+    $gui.Refresh()
+    if ($gui.HasExited) { throw "Packaged GUI exited during launch smoke check: $($gui.ExitCode)" }
+    if (-not $gui.CloseMainWindow()) { throw 'Packaged GUI did not accept a normal close request.' }
+    if (-not $gui.WaitForExit(10000)) { throw 'Packaged GUI did not close within 10 seconds.' }
+    if ($gui.ExitCode -ne 0) { throw "Packaged GUI exited with code $($gui.ExitCode)." }
+  } finally {
+    if ($gui -and -not $gui.HasExited) { Stop-Process -Id $gui.Id -Force }
+  }
   & $dart run tool/ci/package_sources.dart $packageRoot
   if ($LASTEXITCODE -ne 0) { throw 'Matching source package creation failed.' }
   $sourceNative = Join-Path $packageRoot 'SOURCE\third_party\native-sources'; New-Item -ItemType Directory -Force -Path $sourceNative | Out-Null

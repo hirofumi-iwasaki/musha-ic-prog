@@ -48,7 +48,7 @@ Select **Open BIN**, or drop one file onto the left **Input BIN** pane. Any file
 Download the archive matching your OS and processor from the Actions build artifacts during development. Extract the complete directory; keep the executable beside its bundled libraries, `native/` and `resources/` directories.
 
 - Windows: open `mushagaeshi_ic_programmer.exe`. USB operations require the TL866CS WinUSB driver and the interface GUID described in the [Windows setup notes](native/windows/README.md). A native ARM64 build does not validate the driver binding by itself.
-- Ubuntu: run `mushagaeshi_ic_programmer` from an extracted desktop bundle. Install the distribution's GTK 3 runtime and follow the [USB access instructions](linux/udev/README.md) if permission is denied. Do not run the application as root.
+- Ubuntu: run `mushagaeshi_ic_programmer` from an extracted desktop bundle. Install the distribution's GTK 3, EGL/OpenGL and LZMA runtime libraries (`libgtk-3-0`, `libegl1`, `libgles2`, `libgl1-mesa-dri`, `liblzma5`) and follow the [USB access instructions](linux/udev/README.md) if permission is denied. Do not run the application as root.
 
 Windows and Ubuntu physical USB acceptance remains pending. The same file viewer and operation confirmation flow is used on every target.
 

@@ -10,6 +10,7 @@ flutter_bin=${FLUTTER_BIN:-}; if [[ -z $flutter_bin ]]; then
   elif [[ -x "$(dirname "$project_dir")/musha-bin-editor/.tooling/flutter/bin/flutter" ]]; then flutter_bin="$(dirname "$project_dir")/musha-bin-editor/.tooling/flutter/bin/flutter";
   else echo 'Set FLUTTER_BIN or provide the pinned sibling Flutter SDK.' >&2; exit 1; fi
 fi
+if [[ $flutter_bin != */* ]]; then flutter_bin=$(command -v "$flutter_bin" || true); fi
 [[ -x $flutter_bin ]] || { echo 'Flutter 3.47.4 is required.' >&2; exit 1; }
 cd "$project_dir"
 "$project_dir/tool/build_native_linux.sh" "$architecture"

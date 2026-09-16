@@ -111,14 +111,15 @@ jobs:
           path: artifacts
       - name: Check 22.04 bundle on 24.04
         run: |
-          sudo apt-get update && sudo apt-get install --yes libgtk-3-0 liblzma5 xvfb
+          sudo apt-get update && sudo apt-get install --yes libgtk-3-0 liblzma5 libegl1 libgles2 libgl1-mesa-dri xvfb
           mkdir unpacked
           tar -xzf artifacts/*.tar.gz -C unpacked
           app=$(find unpacked -type f -name mushagaeshi_ic_programmer -print -quit)
           test -n "$app"
+          (cd "$(dirname "$app")" && sha256sum --quiet -c SHA256SUMS.txt)
           if ldd "$app" | grep 'not found'; then exit 1; fi
           set +e
-          xvfb-run -a timeout 10s "$app" > smoke.log 2>&1
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a timeout 10s "$app" > smoke.log 2>&1
           result=$?
           set -e
           cat smoke.log

@@ -29,8 +29,8 @@ $flutterVersion
 
 SOURCE/ contains this checkout's application, native helper, packaging and
 licensing inputs. SOURCE/third_party/native-sources/ contains the pinned,
-native dependency sources and the patched minipro source tree used for this
-bundle. SHA256SUMS.txt records regular files except the checksum list itself.
+native dependency sources as archives or expanded trees. The repository
+includes the minipro patches and overlay used to build this bundle. SHA256SUMS.txt records regular files except the checksum list itself.
 
 Rebuild from a clean checkout with the pinned Flutter SDK and native tools:
   macOS: FLUTTER_BIN=flutter zsh tool/package_macos.sh
