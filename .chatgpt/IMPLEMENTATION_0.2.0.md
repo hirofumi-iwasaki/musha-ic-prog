@@ -13,9 +13,31 @@ The accepted five-target design is implemented on `release/0.2.0`: macOS ARM64, 
 - Matching source, licenses, dependency manifests and checksums in all distributions. The verified pinned minipro source archive is versioned to avoid dependence on an interactive upstream download service.
 - Five-target GitHub Actions matrix. Linux is built on Ubuntu 22.04 and launch-checked on Ubuntu 24.04. Only published-release events attach the full five-archive set; branch runs produce Actions artifacts.
 
-## Validation in progress
+## Automated validation completed
 
-Local Flutter analysis and all 57 tests passed, including shared payload resolution, Windows discovery fixtures and operation-aware close handling. CI repeats these checks for every target. macOS ARM64 and Ubuntu x64/ARM64 packaging have passed. Ubuntu 24.04 x64/ARM64 package checksum and headless launch checks also passed in run `35067786600`. Windows native packaging is under validation; the patched 20 C translation units pass syntax checks against the pinned Windows toolchain headers for both architectures. Final CI evidence will be recorded here.
+[GitHub Actions run 35069146880](https://github.com/hirofumi-iwasaki/musha-ic-prog/actions/runs/35069146880) succeeded for implementation commit `e383f61a7c7cc9921ae6155cef51766168a8fc3b` on 2026-09-16. All five native build jobs and both Ubuntu 24.04 compatibility jobs passed. The release upload job was correctly skipped because this was a branch build.
+
+| Target | Build / package | Runtime evidence |
+| --- | --- | --- |
+| macOS ARM64 | Passed | Packaged application architecture/signature checks; manual hardware regression remains pending |
+| Windows x64 | Passed | Native helper help, Unicode database lookup, SetupAPI JSON, complete PE/import checks, packaged GUI launch and normal close |
+| Windows ARM64 | Passed | Same checks on native ARM64 runner; unused x64 CRT companion excluded by import inspection |
+| Ubuntu x64 | Passed on 22.04 | Package checksum verification and headless launch on 24.04 |
+| Ubuntu ARM64 | Passed on 22.04 | Package checksum verification and headless launch on 24.04 |
+
+Every target passed static analysis and all 57 Flutter tests. Unix jobs also passed the standalone simulated SRAM engine tests. The patched 20 C translation units were syntax-checked against the pinned Windows toolchain headers for both Windows architectures before the native CI builds.
+
+The successful run contains exactly these five Actions artifacts, each holding its corresponding archive:
+
+- `musha-ic-prog-macos-arm64.zip`
+- `musha-ic-prog-windows-x64.zip`
+- `musha-ic-prog-windows-arm64.zip`
+- `musha-ic-prog-linux-x64.tar.gz`
+- `musha-ic-prog-linux-arm64.tar.gz`
+
+The downloaded Windows ARM64 ZIP independently passed all 248 recorded file checksums and checks for matching source/native payloads. Its metadata records the exact implementation commit and a clean source worktree. The earlier Windows x64 ZIP from commit `e4e3f16` also passed all 252 checksums before unused CRT companions were removed.
+
+This evidence records automated compilation and hosted runtime checks, not physical programmer acceptance. No v0.2.0 release was published.
 
 ## Outstanding acceptance
 

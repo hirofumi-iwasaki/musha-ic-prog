@@ -8,7 +8,7 @@ Version 0.2.0 extends the TL866CS application to five native targets: macOS ARM6
 
 ## v0.2.0 development status
 
-The five-platform implementation is on `release/0.2.0`. Windows uses the pinned minipro WinUSB backend; Ubuntu and macOS use libusb. Windows driver binding and Ubuntu USB access rules are separate setup steps. See the [port design](.chatgpt/CROSS_PLATFORM_0.2.0.md) for the acceptance matrix. No new device families or physical SRAM/logic tests are enabled by this port.
+The five-platform implementation is on `release/0.2.0`. All five builds and the Ubuntu 24.04 launch checks passed in [GitHub Actions](https://github.com/hirofumi-iwasaki/musha-ic-prog/actions/runs/35069146880). See the [implementation record](.chatgpt/IMPLEMENTATION_0.2.0.md) for the tested commit and remaining physical acceptance. Windows uses the pinned minipro WinUSB backend; Ubuntu and macOS use libusb. Windows driver binding and Ubuntu USB access rules are separate setup steps. See the [port design](.chatgpt/CROSS_PLATFORM_0.2.0.md) for the acceptance matrix. No new device families or physical SRAM/logic tests are enabled by this port.
 
 ## v0.1.0 release evidence
 
