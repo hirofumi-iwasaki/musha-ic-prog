@@ -1,0 +1,8 @@
+# IC Programmer icon v1
+
+Generated with the built-in image_gen tool from the user-provided Mushagaeshi Binary Editor icon.
+Output: mushagaeshi-ic-programmer-icon-v1.png
+
+## Prompt
+
+Use case: precise-object-edit. Asset type: macOS app icon for Mushagaeshi IC Programmer. Edit target: attached square icon. Preserve the Japanese castle, perspective, off-white textured background, rounded dark stone border, stone wall, single deep red stone accent, lighting and tactile sculpted 3D style as closely as possible. Remove ONLY the large ivory '00 FF' lettering across the lower stone wall, restore the underlying dark and red stone textures, and replace that lettering area with ONE clearly recognizable UV EPROM DIP integrated circuit. Place the IC prominently horizontally centered across the same lower foreground area, without obscuring the castle above. Depict a ceramic dark-charcoal rectangular 28-pin dual-inline EPROM package, with two parallel rows of evenly spaced silver metallic pins along its two LONG edges (14 per side), a small orientation notch at one short end, and a distinctive central round quartz window revealing the silicon die with subtle gold bonding detail. The EPROM should be a handsome raised 3D relief matching the existing icon's lighting and perspective, easy to identify at app icon size. Keep the red stone visible behind/around it. No text, no numbers, no logos, no watermark on the chip or anywhere else; no 00, no FF. Do not use a square modern CPU or pins on four sides. Keep the original square canvas, icon silhouette and margins. Preserve transparent exterior outside the rounded icon if present. Produce one polished high-resolution square icon.

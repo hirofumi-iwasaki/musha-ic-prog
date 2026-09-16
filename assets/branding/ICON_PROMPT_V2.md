@@ -1,0 +1,11 @@
+# IC Programmer icon v2
+
+Tool: built-in image_gen.
+
+## Enlargement and white outline
+
+Use case: precise-object-edit. Edit the attached Mushagaeshi IC Programmer icon. Keep the castle, red accent stone, dark stone wall, cream background, rounded dark stone outer border, transparent exterior, camera, lighting and square composition unchanged. Change ONLY the foreground EPROM chip: substantially enlarge it, about 1.4–1.5 times the existing size, centered horizontally in the lower foreground. Its left and right ends must clearly project BEYOND BOTH diagonal outer edges of the castle's stone foundation and onto the cream backdrop. Make the EPROM span roughly 82–86% of the full canvas width, staying inside the outer rounded icon border with a small margin. Preserve the long horizontal dark ceramic DIP body, two rows of metallic pins, orientation notch, and round central quartz window showing the silicon die. Add a clearly visible thick WHITE outline / raised white rim around the entire IC body's perimeter, following its rectangular shape and notch, so the dark chip strongly separates from the dark stone background. White rim should be clean and bold, approximately 8–12 pixels at 1254px canvas scale, not a separate square frame, and not just a faint light reflection. Preserve dark chip face, metallic pins and quartz window. Let the enlarged EPROM overlap more of the stone foundation without covering the castle roofs. No text, numbers, logos or watermarks. High-quality tactile sculpted 3D app icon finish.
+
+## Transparent exterior cleanup
+
+Use case: background-extraction. This is a transparency cleanup ONLY. Preserve every detail of the attached enlarged white-outlined EPROM castle icon, including the exact chip size, white rim, pins, quartz window, castle, stone texture, red accent, cream interior, square canvas and dark rounded outer border. Remove the GRAY CHECKERBOARD pattern OUTSIDE the rounded icon silhouette and replace it with ACTUAL transparent pixels in a PNG alpha channel. The checkerboard is currently painted into the image and MUST NOT be redrawn. Do NOT change the cream background INSIDE the icon. Do NOT alter or resize the icon, chip or outer border. No checkerboard, no solid backdrop, no text; actual transparent background outside the icon.

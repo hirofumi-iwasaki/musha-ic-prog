@@ -4,8 +4,9 @@
 .dart_tool/
 .packages
 build/
-# If you're building an application, you may want to check-in your pubspec.lock
-pubspec.lock
+dist/
+.tooling/
+# Application lockfile is intentionally tracked for reproducible builds.
 
 # Directory created by dartdoc
 # If you don't generate documentation locally you can remove this line.
@@ -27,3 +28,8 @@ doc/api/
 
 .flutter-plugins
 .flutter-plugins-dependencies
+.idea/
+*.iml
+
+# Finder metadata
+.DS_Store

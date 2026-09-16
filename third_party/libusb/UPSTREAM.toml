@@ -1,0 +1,14 @@
+# Pinned source for the macOS runtime dependency.  The archive is fetched only
+# by tool/fetch_native_sources.sh and is not committed under .tooling/.
+[upstream]
+project = "libusb"
+version = "1.0.29"
+url = "https://github.com/libusb/libusb/releases/download/v1.0.29/libusb-1.0.29.tar.bz2"
+sha256 = "5977fc950f8d1395ccea9bd48c06b3f808fd3c2c961b44b0c2e6e29fc3a70a85"
+license = "LGPL-2.1-or-later"
+
+[build]
+target_architecture = "arm64"
+minimum_macos = "15.0"
+linkage = "shared"
+darwin_frameworks = ["Foundation", "IOKit", "Security"]
