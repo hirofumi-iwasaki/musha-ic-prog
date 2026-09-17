@@ -39,7 +39,9 @@ $packageNative = Join-Path $bundle 'native'; $packageResources = Join-Path $bund
 New-Item -ItemType Directory -Force -Path $packageNative, $packageResources | Out-Null
 Copy-Item (Join-Path $nativePrefix 'bin\*.exe'), (Join-Path $nativePrefix 'bin\*.dll') $packageNative -Force
 Copy-Item (Join-Path $nativePrefix 'resources\minipro\*') $packageResources -Force
-Copy-Item (Join-Path $projectDir 'native\windows\README.md') (Join-Path $packageResources 'WINDOWS_USB_SETUP.md') -Force
+Copy-Item (Join-Path $projectDir 'README.md'), (Join-Path $projectDir 'README.ja.md') $bundle -Force
+# Remove an obsolete generated guide when reusing a local build directory.
+Remove-Item -LiteralPath (Join-Path $packageResources 'WINDOWS_USB_SETUP.md') -Force -ErrorAction SilentlyContinue
 Copy-Item (Join-Path $nativePrefix 'BUILD-MANIFEST.txt') (Join-Path $packageResources 'BUILD-MANIFEST.txt') -Force
 $miniproSmoke = Join-Path $packageNative 'minipro.exe'
 $miniproOutput = & $miniproSmoke --help 2>&1
