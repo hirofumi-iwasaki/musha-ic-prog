@@ -75,4 +75,4 @@ archive and LGPL license are included in the distribution.
 No MSYS/Cygwin runtime is included. The original native archives, patch,
 probe and rebuild scripts are retained under `SOURCE/` in the ZIP.
 Driver binding is a separate manual setup and hardware acceptance step;
-see `native/windows/README.md`.
+see [Windows installation](../README.md#windows-installation).

@@ -187,7 +187,7 @@ final class MiniproTl866Backend
   }
 
   String _winusbSetupReason(String detail) =>
-      '$detail Follow resources/minipro/WINDOWS_USB_SETUP.md, then reconnect the programmer.';
+      '$detail Follow README.md (Windows installation), then reconnect the programmer.';
 
   String _probeFailureReason(ProcessTranscript probe) {
     final text = '${probe.stderr}\n${probe.stdout}'.toLowerCase();
@@ -237,7 +237,7 @@ final class MiniproTl866Backend
       text.contains('access denied');
 
   String _libusbAccessReason() => switch (_operatingSystem) {
-    'windows' => 'TL866CS was detected, but libusb access was denied. Check the WinUSB binding in resources/minipro/WINDOWS_USB_SETUP.md, then reconnect it.',
+    'windows' => 'TL866CS was detected, but libusb access was denied. Check the WinUSB binding in README.md (Windows installation), then reconnect it.',
     'linux' => 'TL866CS was detected, but libusb access was denied. Install or reload the TL866 udev rule for the current user, then reconnect it.',
     'macos' => 'TL866CS was detected, but macOS denied USB access. Check the app USB permission and reconnect it.',
     _ => 'TL866CS was detected, but libusb access was denied. Reconnect it and check USB permissions.',

@@ -15,6 +15,7 @@ void main(List<String> args) {
   const inputs = [
     'LICENSE',
     'README.md',
+    'README.ja.md',
     'pubspec.yaml',
     'pubspec.lock',
     'analysis_options.yaml',

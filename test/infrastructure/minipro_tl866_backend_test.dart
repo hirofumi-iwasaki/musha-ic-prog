@@ -254,7 +254,10 @@ void main() {
     );
     expect(await backend.scan(), isEmpty);
     expect(backend.discoveryReason, contains('rather than WinUSB'));
-    expect(backend.discoveryReason, contains('WINDOWS_USB_SETUP.md'));
+    expect(
+      backend.discoveryReason,
+      contains('README.md (Windows installation)'),
+    );
     expect(runner.calls, hasLength(1));
   });
 
