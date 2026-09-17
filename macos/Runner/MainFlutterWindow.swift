@@ -69,7 +69,29 @@ private final class FileDropHostView: NSView {
   deinit { for url in accessURLs.values { url.stopAccessingSecurityScopedResource() } }
 }
 
-class MainFlutterWindow: NSWindow {
+class MainFlutterWindow: NSWindow, NSWindowDelegate {
+  private var closeApproved = false
+  private var closePending = false
+
+  func requestClose(_ completion: @escaping (Bool) -> Void) {
+    guard let channel = dropChannel else { completion(false); return }
+    channel.invokeMethod("closeRequested", arguments: nil) { result in
+      completion((result as? Bool) == true)
+    }
+  }
+
+  func windowShouldClose(_ sender: NSWindow) -> Bool {
+    if closeApproved { return true }
+    guard !closePending else { return false }
+    closePending = true
+    requestClose { [weak self] allowed in
+      guard let self else { return }
+      self.closePending = false
+      if allowed { self.closeApproved = true; self.performClose(nil) }
+    }
+    return false
+  }
+
   private var dropChannel: FlutterMethodChannel?
 
   override func awakeFromNib() {
@@ -104,5 +126,6 @@ class MainFlutterWindow: NSWindow {
       result(nil)
     }
     super.awakeFromNib()
+    self.delegate = self
   }
 }

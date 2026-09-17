@@ -74,3 +74,40 @@ D24: 2026-09-16、ユーザーが「有効化OKです」と明示承認した。
 INFOIC type 1、byte構成、有効容量、非SMD・直接DIP、型番解決が一意という既存条件を維持する。
 書込み前ブランク確認、自動消去禁止、書込み後全byte照合、各操作の配置確認を維持する。
 この承認は未知のICを自動で操作する指示ではなく、アプリ内の評価操作を有効にする指示である。
+
+## v0.2.0: five-platform portability (2026-09-16)
+
+Accepted implementation baseline: [CROSS_PLATFORM_0.2.0.md](CROSS_PLATFORM_0.2.0.md).
+
+- D25: Five release targets: macOS ARM64, Windows 11 x64/ARM64, Ubuntu 22.04/24.04 x64/ARM64. ARM means native ARM64. Linux distribution baseline follows Binary Editor.
+- D26: Keep shared Dart/controller/UI and pinned minipro protocol implementation. Extract payload/discovery/file-drop/window lifecycle adapters; keep macOS sandbox behavior.
+- D27 (superseded by D30): Windows uses pinned minipro's existing SetupAPI/WinUSB backend and a Windows discovery probe. Linux/macOS use libusb. Driver GUID/ARM64 binding and Linux udev access are explicit native validation gates.
+- D28: Five complete archives named musha-ic-prog-[OS]-[arch], with matching sources/notices; all required builds must pass before release assets are uploaded as a complete set.
+- D29: Device eligibility and existing operation safeguards remain unchanged. No T56, physical SRAM/logic feature expansion or binary editing in this portability scope. Per-target hardware evidence is required independently of CI.
+
+These decisions extend the 0.1.0 records; they establish the implementation direction, not completed platform support.
+
+## D30: Windows TL866CS transport correction (2026-09-16)
+
+Pinned `src/usb_win.c` uses legacy vendor IOCTLs for TL866A/CS, not its WinUSB
+path. D27's assumption was incorrect; a WinUSB binding alone cannot make that
+binary work. Compile pinned `src/usb_nix.c` with libusb 1.0.29 on Windows x64 and
+ARM64, bundle the native shared DLL, and use Microsoft's built-in WinUSB driver
+with a separate user-approved Zadig assignment. SetupAPI discovery checks USB
+VID/PID and the bound service rather than the legacy vendor interface GUID.
+Actual MiniPro model/firmware access remains the next readiness check. Preserve
+all existing IC operation safeguards and macOS/Linux behavior.
+
+The user requested withdrawal of v0.2.0: the GitHub Release and assets were
+deleted; its tag remains unchanged. Corrected branch builds are for validation;
+do not republish a Release without a new user instruction. Compilation and
+hosted no-device checks must not be reported as physical hardware acceptance.
+
+## D31: Republish corrected v0.2.0
+
+The user explicitly requested publishing v0.2.0 again after the correction.
+Move the old tag from `941f6f0fc7c33e768c8ae8c81ef0157710a56413` to the corrected
+release commit, publish English release notes titled `v0.2.0`, and rebuild all
+five assets from that tag through the release workflow. The earlier withdrawal
+record remains historical. This approval is not physical hardware test evidence
+and does not request merging PR #2.

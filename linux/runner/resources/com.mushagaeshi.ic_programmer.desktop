@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Mushagaeshi IC Programmer
+Comment=Program supported ICs with a TL866CS
+Exec=mushagaeshi_ic_programmer
+Icon=com.mushagaeshi.ic_programmer
+Terminal=false
+Categories=Development;Utility;
+StartupWMClass=com.mushagaeshi.ic_programmer

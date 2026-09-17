@@ -31,32 +31,8 @@ source_dir="$distribution_dir/SOURCE"
 mkdir -p "$distribution_dir" "$source_dir"
 ditto "$app" "$distribution_dir/$app_name"
 
-# Copy the actual checkout inputs, including intentionally uncommitted local
-# source files, rather than relying on git archive to reconstruct a release.
-for item in LICENSE README.md pubspec.yaml pubspec.lock analysis_options.yaml lib native assets tool third_party test; do
-  [[ -e "$project_dir/$item" ]] || continue
-  ditto "$project_dir/$item" "$source_dir/$item"
-done
-mkdir -p "$source_dir/macos"
-for item in .gitignore Podfile Podfile.lock Runner RunnerTests; do
-  [[ -e "$project_dir/macos/$item" ]] || continue
-  ditto "$project_dir/macos/$item" "$source_dir/macos/$item"
-done
-mkdir -p "$source_dir/macos/Flutter" "$source_dir/macos/Runner.xcworkspace/xcshareddata"
-for item in Flutter-Debug.xcconfig Flutter-Release.xcconfig GeneratedPluginRegistrant.swift; do
-  ditto "$project_dir/macos/Flutter/$item" "$source_dir/macos/Flutter/$item"
-done
-for item in contents.xcworkspacedata xcshareddata/IDEWorkspaceChecks.plist; do
-  [[ -e "$project_dir/macos/Runner.xcworkspace/$item" ]] || continue
-  ditto "$project_dir/macos/Runner.xcworkspace/$item" \
-    "$source_dir/macos/Runner.xcworkspace/$item"
-done
-mkdir -p "$source_dir/macos/Runner.xcodeproj"
-for item in project.pbxproj project.xcworkspace xcshareddata; do
-  [[ -e "$project_dir/macos/Runner.xcodeproj/$item" ]] || continue
-  ditto "$project_dir/macos/Runner.xcodeproj/$item" \
-    "$source_dir/macos/Runner.xcodeproj/$item"
-done
+flutter_bin=${FLUTTER_BIN:-flutter}
+"$flutter_bin" pub run tool/ci/package_sources.dart "$distribution_dir"
 
 native_sources="$source_dir/third_party/native-sources"
 mkdir -p "$native_sources"
@@ -70,9 +46,7 @@ ditto "$materialized_minipro" "$native_sources/minipro-cae74c0607077d6260b24995f
 
 flutter_bin=${FLUTTER_BIN:-flutter}
 "$flutter_bin" pub run tool/ci/write_distribution_metadata.dart "$distribution_dir" macos-arm64 "$flutter_bin"
-checksums="$stage_dir/SHA256SUMS.txt"
-(cd "$distribution_dir" && find . -type f -print0 | sort -z | xargs -0 shasum -a 256) > "$checksums"
-mv "$checksums" "$distribution_dir/SHA256SUMS.txt"
+"$flutter_bin" pub run tool/ci/write_checksums.dart "$distribution_dir"
 archive_stage="$stage_dir/$archive_name"
 /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$distribution_dir" "$archive_stage"
 mv "$archive_stage" "$output_dir/$archive_name"

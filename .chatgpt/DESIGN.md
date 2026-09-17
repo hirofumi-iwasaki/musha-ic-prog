@@ -245,3 +245,10 @@ T56などで別途必要になるアルゴリズムデータは、入手可能�
 実機未検証の型番をverifiedとして扱わない。
 Sandboxは有効のままUSB権限を付け、アプリ内の固定helper・DBを使用する。
 実装・実測の詳細は[実装記録](IMPLEMENTATION_0.1.0.md)へ追記する。
+
+## v0.2.0 platform extension
+
+The accepted five-platform portability design is [CROSS_PLATFORM_0.2.0.md](CROSS_PLATFORM_0.2.0.md).
+It extends the macOS baseline with native Windows x64/ARM64 and Ubuntu x64/ARM64,
+while preserving the current TL866CS operation scope. See decisions D25–D29 and
+WORK_PLAN.md for implementation and native acceptance gates.

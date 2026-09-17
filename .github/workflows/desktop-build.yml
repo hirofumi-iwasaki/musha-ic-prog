@@ -1,0 +1,149 @@
+name: Desktop build and package
+
+on:
+  push:
+    branches: [release/0.2.0]
+  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: 3.47.4
+  FLUTTER_REVISION: 9584c6713b324636289d067944a46fd6b49df14b
+
+jobs:
+  build:
+    name: ${{ matrix.platform }} ${{ matrix.architecture }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos
+            architecture: arm64
+            runner: macos-15
+            extension: zip
+          - platform: windows
+            architecture: x64
+            runner: windows-2022
+            extension: zip
+          - platform: windows
+            architecture: arm64
+            runner: windows-11-arm
+            extension: zip
+          - platform: linux
+            architecture: x64
+            runner: ubuntu-22.04
+            extension: tar.gz
+          - platform: linux
+            architecture: arm64
+            runner: ubuntu-22.04-arm
+            extension: tar.gz
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || github.ref }}
+      - name: Install Ubuntu build prerequisites
+        if: matrix.platform == 'linux'
+        run: sudo apt-get update && sudo apt-get install --yes clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev build-essential libudev-dev zlib1g-dev
+      - name: Bootstrap Flutter (Unix)
+        if: matrix.platform != 'windows'
+        run: bash tool/ci/bootstrap_flutter.sh '${{ matrix.architecture }}' "$RUNNER_TEMP/flutter"
+      - name: Bootstrap Flutter (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: tool/ci/bootstrap_flutter.ps1 -Architecture '${{ matrix.architecture }}' -FlutterRoot "$env:RUNNER_TEMP/flutter"
+      - name: Analyze and test (Unix)
+        if: matrix.platform != 'windows'
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+          sh tool/test_sram.sh
+      - name: Analyze and test (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          flutter pub get
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          flutter analyze
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          flutter test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Package macOS
+        if: matrix.platform == 'macos'
+        run: FLUTTER_BIN="$RUNNER_TEMP/flutter/bin/flutter" zsh tool/package_macos.sh
+      - name: Package Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: tool/build_windows.ps1 -Architecture '${{ matrix.architecture }}' -FlutterBin "$env:RUNNER_TEMP/flutter/bin/flutter.bat"
+      - name: Package Ubuntu
+        if: matrix.platform == 'linux'
+        run: FLUTTER_BIN="$RUNNER_TEMP/flutter/bin/flutter" bash tool/build_linux.sh '${{ matrix.architecture }}'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: musha-ic-prog-${{ matrix.platform }}-${{ matrix.architecture }}
+          path: dist/musha-ic-prog-${{ matrix.platform }}-${{ matrix.architecture }}.${{ matrix.extension }}
+          if-no-files-found: error
+
+  ubuntu-24-smoke:
+    if: ${{ always() && !cancelled() }}
+    name: Ubuntu 24.04 ${{ matrix.architecture }} bundle smoke
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: x64
+            runner: ubuntu-24.04
+          - architecture: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: musha-ic-prog-linux-${{ matrix.architecture }}
+          path: artifacts
+      - name: Check 22.04 bundle on 24.04
+        run: |
+          sudo apt-get update && sudo apt-get install --yes libgtk-3-0 liblzma5 libegl1 libgles2 libgl1-mesa-dri xvfb
+          mkdir unpacked
+          tar -xzf artifacts/*.tar.gz -C unpacked
+          app=$(find unpacked -type f -name mushagaeshi_ic_programmer -print -quit)
+          test -n "$app"
+          (cd "$(dirname "$app")" && sha256sum --quiet -c SHA256SUMS.txt)
+          if ldd "$app" | grep 'not found'; then exit 1; fi
+          set +e
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a timeout 10s "$app" > smoke.log 2>&1
+          result=$?
+          set -e
+          cat smoke.log
+          test "$result" -eq 124
+
+  publish:
+    name: Attach all five release packages
+    if: github.event_name == 'release'
+    needs: [build, ubuntu-24-smoke]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: musha-ic-prog-*
+          path: release-assets
+          merge-multiple: true
+      - name: Verify complete artifact set and upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          expected=(musha-ic-prog-macos-arm64.zip musha-ic-prog-windows-x64.zip musha-ic-prog-windows-arm64.zip musha-ic-prog-linux-x64.tar.gz musha-ic-prog-linux-arm64.tar.gz)
+          for name in "${expected[@]}"; do test -s "release-assets/$name"; done
+          gh release upload "$RELEASE_TAG" release-assets/* --clobber

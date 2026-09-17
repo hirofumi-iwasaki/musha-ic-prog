@@ -17,7 +17,7 @@ if [[ ! -f "$libusb_archive" ]]; then
   curl --fail --location --proto '=https' --tlsv1.2 --output "$libusb_archive" "$libusb_url"
 fi
 if [[ ! -f "$minipro_archive" ]]; then
-  curl --fail --location --proto '=https' --tlsv1.2 --output "$minipro_archive" "$minipro_url"
+  cp "$repo_dir/third_party/minipro/source/minipro-$minipro_commit.tar.gz" "$minipro_archive"
 fi
 
 actual_sha256=$(shasum -a 256 "$libusb_archive" | awk '{print $1}')
