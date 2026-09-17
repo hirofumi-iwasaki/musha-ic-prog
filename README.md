@@ -1,5 +1,7 @@
 # Mushagaeshi IC Programmer
 
+**English** | [日本語](README.ja.md)
+
 A desktop EPROM and memory IC programmer with a read-only hexadecimal viewer and comparison tools.
 
 Repository: [hirofumi-iwasaki/musha-ic-prog](https://github.com/hirofumi-iwasaki/musha-ic-prog)
@@ -10,7 +12,7 @@ Version 0.2.0 extends the TL866CS application to five native targets: macOS ARM6
 
 The republished [v0.2.0 Release](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.2.0) includes the corrected Windows TL866CS transport: bundled libusb with Microsoft's WinUSB driver. Windows requires a one-time driver assignment; Ubuntu may require USB access rules. Replace any archive downloaded before this correction.
 
-All five corrected targets and both Ubuntu 24.04 launch checks passed [automated validation](https://github.com/hirofumi-iwasaki/musha-ic-prog/actions/runs/35074949228). Automated builds do not establish physical USB acceptance. See the [implementation record](.chatgpt/IMPLEMENTATION_0.2.0.md) and [Windows setup notes](native/windows/README.md). No new device families or physical SRAM/logic tests are enabled by this port.
+All five corrected targets and both Ubuntu 24.04 launch checks passed [automated validation](https://github.com/hirofumi-iwasaki/musha-ic-prog/actions/runs/35074949228). Automated builds do not establish physical USB acceptance. See the [implementation record](.chatgpt/IMPLEMENTATION_0.2.0.md) and [Windows installation instructions](#windows-installation). No new device families or physical SRAM/logic tests are enabled by this port.
 
 ## v0.1.0 release evidence
 
@@ -45,14 +47,95 @@ The current application uses ad-hoc signing and has not been notarized by Apple.
 
 Select **Open BIN**, or drop one file onto the left **Input BIN** pane. Any file extension is accepted; contents are read as raw bytes, without interpreting formats such as Intel HEX. Select the exact vendor and device before performing an IC operation, and confirm the device placement. Programming requires an additional confirmation. Do not touch the programmer, IC or USB connection while an operation is running.
 
-## Run the Windows or Ubuntu app
+## Windows installation
 
-Download the archive matching your OS and processor from [v0.2.0 Releases](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.2.0). Extract the complete directory; keep the executable beside its bundled libraries, `native/` and `resources/` directories.
+### Download and extract
 
-- Windows: open `mushagaeshi_ic_programmer.exe`. USB operations require assigning the Windows WinUSB driver to TL866CS once, following the [Windows setup notes](native/windows/README.md). The same notes are included as `resources/minipro/WINDOWS_USB_SETUP.md`. A native ARM64 build does not validate the driver binding by itself.
-- Ubuntu: run `mushagaeshi_ic_programmer` from an extracted desktop bundle. Install the distribution's GTK 3, EGL/OpenGL and LZMA runtime libraries (`libgtk-3-0`, `libegl1`, `libgles2`, `libgl1-mesa-dri`, `liblzma5`) and follow the [USB access instructions](linux/udev/README.md) if permission is denied. Do not run the application as root.
+1. Download the corrected [v0.2.0 Release](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.2.0):
+   - Intel/AMD Windows PCs: `musha-ic-prog-windows-x64.zip`.
+   - Windows ARM PCs and Windows in Parallels on Apple Silicon: `musha-ic-prog-windows-arm64.zip`.
+2. Extract the entire archive before running the app. Keep `mushagaeshi_ic_programmer.exe`, its DLLs, `data/`, `native/` and `resources/` together. In particular, keep `native/libusb-1.0.dll` beside `native/minipro.exe`.
+3. Open `mushagaeshi_ic_programmer.exe`. Flutter, MiniPro and libusb do not need separate installation. File viewing works without a programmer; USB operations require the driver assignment below.
 
-Windows and Ubuntu physical USB acceptance remains pending. The same file viewer and operation confirmation flow is used on every target.
+If you downloaded v0.2.0 before its Windows transport correction, replace that archive with the republished version. Driver setup alone cannot fix the earlier executable. Windows packages built from this revision include both English and Japanese READMEs beside the executable; previously published packages may still refer to `resources/minipro/WINDOWS_USB_SETUP.md`. This section supersedes that older guide.
+
+### Connect TL866CS to Windows
+
+Close other programmer software, including the original MiniPro application. Connect one TL866CS over USB.
+
+For Parallels on a Mac, assign **MiniPro TL-866 Programmer** to the Windows virtual machine using Parallels' USB device menu or connection prompt. The programmer must be attached to Windows rather than macOS. After restarting or reconnecting, check this assignment again if the app cannot see the device.
+
+### Assign WinUSB with Zadig
+
+Windows includes the WinUSB driver, but TL866CS may need a one-time assignment to that driver. This installation requires administrator approval; normal use of the app does not.
+
+1. Download [Zadig from its official website](https://zadig.akeo.ie/). Use the current release; ARM64 WinUSB installation support was added in Zadig 2.8. That support does not eliminate the Windows ARM64 signature restriction described below.
+2. Start Zadig and approve the administrator prompt.
+3. Select **Options > List All Devices**.
+4. Select **MiniPro TL-866 Programmer**, or the corresponding TL866CS entry. Verify **USB ID `04D8 E11C`** before proceeding. Do not select a keyboard, mouse, hub or another USB device. TL866A shares this ID; the application separately checks the model and only enables TL866CS operations.
+5. Select **WinUSB** in the replacement-driver field, then **Install Driver** or **Replace Driver**. Do not select libusbK or libusb-win32 for this application.
+6. Once installation succeeds, disconnect and reconnect TL866CS, open the application and refresh the connection.
+
+Assigning WinUSB may prevent the original MiniPro application from using its legacy vendor driver. To return to that application, restore its driver with the official vendor installer or Device Manager's driver rollback, when available.
+
+### Windows ARM64: installation fails with a signature error
+
+Windows ARM64 can reject Zadig's generated driver package even though WinUSB itself is provided by Microsoft. The user-facing error may be **Operation not supported or not implemented**. That message alone is not sufficient to identify the cause.
+
+In Zadig, enable **Options > Advanced Mode**, select **Options > Log Level > Debug**, and inspect the installation log. The following messages identify the signature rejection encountered with this application:
+
+```text
+Driver package signer is not trusted by system, and Code Integrity is enforced.
+Driver package failed signature validation. Error = 0xE0000243
+This version of Windows is refusing to trust the installed certificate.
+```
+
+This is a [known libwdi/Zadig ARM64 issue](https://github.com/pbatard/libwdi/issues/289). It occurs before the application can communicate with the programmer; reinstalling the application does not resolve it.
+
+For this specific error, the following temporary installation workaround succeeded on **Windows 11 ARM 25H2, OS build 26200.9457, in Parallels Desktop on a MacBook Pro M1 Max**:
+
+1. Save your work. If BitLocker or Device Encryption is enabled, have the recovery key available before changing startup settings. If you cannot retrieve the key, stop here.
+2. Inside Windows, hold **Shift** while choosing **Restart** from the Start menu. Do not reset or suspend the virtual machine from Parallels instead.
+3. Choose **Troubleshoot > Advanced options > Startup Settings > Restart**.
+4. On the numbered startup menu, press **7** for **Disable driver signature enforcement**. The number key avoids Mac function-key mapping issues.
+5. Once Windows starts, ensure TL866CS is assigned to the Windows guest. Run Zadig and repeat the **`04D8:E11C` > WinUSB** installation above. Do not restart again before completing installation.
+6. After installation, restart Windows normally, without selecting option 7. Reconnect TL866CS to the Windows guest and confirm that the application recognizes it. Confirm reading with the correct IC profile and placement before attempting other operations.
+
+**This temporarily weakens driver signature enforcement for that boot session.** Use it only to install the intended WinUSB package from official Zadig. Normal restart restores enforcement. The procedure does not require permanently enabling Test Mode or disabling Secure Boot or memory integrity. If it still fails, retain the log and investigate the specific error instead of disabling additional protections. See [Microsoft's startup settings instructions](https://support.microsoft.com/en-us/windows/experience/startup-boot/windows-startup-settings) and [the temporary signature-enforcement setting](https://learn.microsoft.com/en-us/windows-hardware/drivers/install/test-signing).
+
+### After a normal restart
+
+The user confirmed that the application continued to work after a normal restart in the Parallels environment above. **For that tested installation, option 7 was needed only during initial driver installation, not on every boot.** The installation package's signature check and the loading of Microsoft's WinUSB driver are separate stages.
+
+This report does not guarantee every Windows build or configuration. Reinstalling Windows, removing the driver, restoring an older VM snapshot or changing device/USB assignment may require setup again. If the programmer disappears, first check Parallels USB assignment and the bound driver rather than repeating the signature workaround automatically.
+
+### Windows connection troubleshooting
+
+From PowerShell in the extracted application directory, run:
+
+```powershell
+.\native\tl866_probe.exe
+```
+
+The probe reads device information without operating the IC.
+
+| Result | What to check |
+| --- | --- |
+| `count` is `0` | Cable, USB connection and Parallels assignment to Windows. |
+| More than one matching device | Disconnect additional TL866A/CS programmers. |
+| Empty `driverService` | The driver has not been assigned successfully. Follow the Zadig instructions. |
+| `driverService` is not `WinUSB` | A different driver is bound. Check the selected device and driver in Zadig. |
+| `driverService` is `WinUSB`, `interfaceReady` is `true` | The driver prerequisite is present. The app must still complete its model/firmware check. Close other programmer software and reconnect if opening fails. |
+
+For a persistent failure, report the Zadig version and error log, Windows version/OS build from `winver`, whether Windows runs on hardware or in a VM, and the probe output. Indicate whether installation was attempted during the temporary option-7 boot. Do not include BitLocker recovery keys or other credentials.
+
+## Ubuntu installation
+
+Download `musha-ic-prog-linux-x64.tar.gz` or `musha-ic-prog-linux-arm64.tar.gz` from [Releases](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.2.0), matching the processor of your Ubuntu system. Extract the complete directory and run `mushagaeshi_ic_programmer` from the extracted bundle.
+
+Install the distribution's GTK 3, EGL/OpenGL and LZMA runtime libraries (`libgtk-3-0`, `libegl1`, `libgles2`, `libgl1-mesa-dri`, `liblzma5`). If USB access is denied, follow the included [USB access instructions](linux/udev/README.md). Do not run the application as root.
+
+A user reported successful Linux hardware operation; the distribution version, architecture and exact operation coverage were not specified. The Windows ARM64 report above and the Linux report are hardware observations, not validation of every target, IC profile or programming operation. The same file viewer and operation confirmation flow is used on every target.
 
 ## Features
 
