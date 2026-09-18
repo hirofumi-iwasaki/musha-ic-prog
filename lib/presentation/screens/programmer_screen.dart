@@ -15,7 +15,11 @@ import '../../core/models/device_catalog.dart';
 import '../../core/models/device_profile.dart';
 import '../../core/models/operation.dart';
 import '../../core/models/programmer.dart';
+import '../../l10n/app_localizations.dart';
+import '../../l10n/localize_message.dart';
 import '../widgets/binary_viewer.dart';
+import '../widgets/language_selector.dart';
+import '../widgets/typeahead_selector.dart';
 
 class ProgrammerScreen extends StatefulWidget {
   const ProgrammerScreen({super.key, required this.controller});
@@ -23,6 +27,78 @@ class ProgrammerScreen extends StatefulWidget {
 
   @override
   State<ProgrammerScreen> createState() => _ProgrammerScreenState();
+}
+
+class _DeviceAutocompleteOptions extends StatefulWidget {
+  const _DeviceAutocompleteOptions({
+    required this.options,
+    required this.onSelected,
+    required this.secondaryLabelOf,
+  });
+
+  final List<CatalogDevice> options;
+  final AutocompleteOnSelected<CatalogDevice> onSelected;
+  final String Function(CatalogDevice device) secondaryLabelOf;
+
+  @override
+  State<_DeviceAutocompleteOptions> createState() =>
+      _DeviceAutocompleteOptionsState();
+}
+
+class _DeviceAutocompleteOptionsState
+    extends State<_DeviceAutocompleteOptions> {
+  final _scrollController = ScrollController();
+  int _lastHighlighted = -1;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final highlighted = AutocompleteHighlightedOption.of(context);
+    if (highlighted != _lastHighlighted) {
+      _lastHighlighted = highlighted;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_scrollController.hasClients || highlighted < 0) {
+          return;
+        }
+        _scrollController.animateTo(
+          (highlighted * 72.0)
+              .clamp(0.0, _scrollController.position.maxScrollExtent)
+              .toDouble(),
+          duration: const Duration(milliseconds: 100),
+          curve: Curves.easeOut,
+        );
+      });
+    }
+    return ListView.builder(
+      controller: _scrollController,
+      padding: EdgeInsets.zero,
+      itemExtent: 72,
+      itemCount: widget.options.length,
+      itemBuilder: (context, index) {
+        final device = widget.options[index];
+        final selected = index == highlighted;
+        return Semantics(
+          selected: selected,
+          child: ListTile(
+            selected: selected,
+            selectedTileColor: Theme.of(context).colorScheme.secondaryContainer,
+            selectedColor: Theme.of(context).colorScheme.onSecondaryContainer,
+            title: Text(device.label, overflow: TextOverflow.ellipsis),
+            subtitle: Text(
+              widget.secondaryLabelOf(device),
+              overflow: TextOverflow.ellipsis,
+            ),
+            onTap: () => widget.onSelected(device),
+          ),
+        );
+      },
+    );
+  }
 }
 
 class _ProgrammerScreenState extends State<ProgrammerScreen> {
@@ -33,6 +109,8 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
   bool _programDialogOpen = false;
   bool _isLoadingInput = false;
   final GlobalKey _inputDropRegionKey = GlobalKey();
+  final GlobalKey _vendorSelectorKey = GlobalKey();
+  final GlobalKey _deviceSelectorKey = GlobalKey();
   late final DesktopHost _desktopHost;
 
   @override
@@ -45,7 +123,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
         if (widget.controller.isBusy ||
             widget.controller.needsProgramConfirmation) {
           _showFileError(
-            'Wait for the current operation to finish before closing.',
+            AppLocalizations.of(context)!.waitForOperationToFinish,
           );
           return false;
         }
@@ -90,22 +168,46 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Text(_isSimulation(c) ? 'Program simulated IC?' : 'Program IC?'),
-        content: Text(
-          '${_isSimulation(c) ? 'This simulation will' : 'This operation will'} write the immutable snapshot ${input?.label ?? '—'} (${input?.length ?? 0} bytes), then read it back and verify every byte.\n\nTarget alias: ${_targetLabel(c, profile)}\nCapacity: ${profile?.capacityBytes ?? '—'} bytes\nSHA-1: ${input?.sha1 ?? '—'}${_isSimulation(c) ? '\n\nNo physical hardware is controlled.' : ''}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+      builder: (context) {
+        final l10n = AppLocalizations.of(context)!;
+        return AlertDialog(
+          scrollable: true,
+          title: Text(
+            _isSimulation(c)
+                ? l10n.programSimulatedIcTitle
+                : l10n.programIcTitle,
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(_isSimulation(c) ? 'Program simulation' : 'Program'),
+          content: Text(
+            _isSimulation(c)
+                ? l10n.programSimulationConfirmation(
+                    input?.label ?? '—',
+                    input?.length ?? 0,
+                    _targetLabel(c, profile),
+                    profile?.capacityBytes?.toString() ?? '—',
+                    input?.sha1 ?? '—',
+                  )
+                : l10n.programConfirmation(
+                    input?.label ?? '—',
+                    input?.length ?? 0,
+                    _targetLabel(c, profile),
+                    profile?.capacityBytes?.toString() ?? '—',
+                    input?.sha1 ?? '—',
+                  ),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(l10n.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(
+                _isSimulation(c) ? l10n.programSimulation : l10n.program,
+              ),
+            ),
+          ],
+        );
+      },
     );
     _programDialogOpen = false;
     if (!mounted || !c.needsProgramConfirmation) return;
@@ -133,18 +235,18 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
     return ViewerImage(
       bytes: image.bytes,
       name: image.label,
-      origin: _originLabel(image.origin),
+      origin: _origin(image.origin),
       sha1: image.sha1,
       capturedAt: image.createdAt,
       stale: false,
     );
   }
 
-  String _originLabel(BinaryImageOrigin origin) => switch (origin) {
-    BinaryImageOrigin.file => 'Input BIN',
-    BinaryImageOrigin.readout => 'IC readout snapshot',
+  ViewerImageOrigin _origin(BinaryImageOrigin origin) => switch (origin) {
+    BinaryImageOrigin.file => ViewerImageOrigin.file,
+    BinaryImageOrigin.readout => ViewerImageOrigin.readout,
     BinaryImageOrigin.postWriteVerification =>
-      'Post-write verification snapshot',
+      ViewerImageOrigin.postWriteVerification,
   };
 
   Future<void> _openBin() async {
@@ -164,7 +266,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
       _showFileError(
         arguments is Map && arguments['message'] is String
             ? arguments['message'] as String
-            : 'The dropped file could not be opened.',
+            : AppLocalizations.of(context)!.droppedFileCouldNotBeOpened,
       );
       return;
     }
@@ -177,7 +279,9 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
           arguments['path'] is! String ||
           arguments['x'] is! num ||
           arguments['y'] is! num) {
-        _showFileError('The dropped file could not be opened.');
+        _showFileError(
+          AppLocalizations.of(context)!.droppedFileCouldNotBeOpened,
+        );
         return;
       }
       if (!_isInputDropAt(
@@ -186,7 +290,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
           (arguments['y'] as num).toDouble(),
         ),
       )) {
-        _showFileError('Drop a file on the Input BIN panel.');
+        _showFileError(AppLocalizations.of(context)!.dropFileOnInputBin);
         return;
       }
       await _loadInputPath(arguments['path'] as String);
@@ -205,10 +309,11 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
   }
 
   Future<void> _loadInputPath(String path, {String? label}) async {
+    final l10n = AppLocalizations.of(context)!;
     try {
       final entityType = await FileSystemEntity.type(path, followLinks: true);
       if (entityType != FileSystemEntityType.file) {
-        _showFileError('The dropped item is not a readable file.');
+        _showFileError(l10n.droppedItemNotReadableFile);
         return;
       }
       final file = File(path);
@@ -218,7 +323,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
         readBytes: file.readAsBytes,
       );
     } catch (_) {
-      _showFileError('The BIN file could not be opened.');
+      _showFileError(l10n.binFileCouldNotBeOpened);
     }
   }
 
@@ -228,20 +333,21 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
     required Future<List<int>> Function() readBytes,
   }) async {
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
     if (_isLoadingInput) {
-      _showFileError('Another input file is still loading.');
+      _showFileError(l10n.anotherInputFileLoading);
       return;
     }
     if (widget.controller.isBusy ||
         widget.controller.needsProgramConfirmation) {
-      _showFileError('Wait for the current operation before opening a file.');
+      _showFileError(l10n.waitForOperationBeforeOpeningFile);
       return;
     }
     _isLoadingInput = true;
     try {
       final fileLength = await length();
       if (fileLength > ProgrammerController.maxInputBytes) {
-        _showFileError('BIN files larger than 64 MiB are not supported yet.');
+        _showFileError(l10n.binFileTooLarge);
         return;
       }
       final bytes = await readBytes();
@@ -252,7 +358,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
       }
       widget.controller.openBinary(bytes, label: label);
     } catch (_) {
-      _showFileError('The BIN file could not be opened.');
+      _showFileError(l10n.binFileCouldNotBeOpened);
     } finally {
       _isLoadingInput = false;
     }
@@ -267,11 +373,13 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
   bool _isSimulation(ProgrammerController c) => c.usingSimulation;
 
   String _targetLabel(ProgrammerController c, DeviceProfile? profile) =>
-      c.selectedDevice?.label ?? profile?.displayName ?? 'the selected device';
+      c.selectedDevice?.label ??
+      profile?.displayName ??
+      AppLocalizations.of(context)!.selectedDevice;
 
   Future<void> _startOperation(
     ProgrammerController c,
-    String operation,
+    OperationKind kind,
     Future<void> Function() start,
   ) async {
     if (_isSimulation(c)) {
@@ -283,42 +391,52 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text('Confirm physical $operation'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Target alias: ${_targetLabel(c, c.selectedProfile)}'),
-              Text(
-                'Capacity: ${c.selectedProfile?.capacityBytes ?? '—'} bytes',
+        builder: (context, setDialogState) {
+          final l10n = AppLocalizations.of(context)!;
+          final operationName = switch (kind) {
+            OperationKind.read => l10n.read,
+            OperationKind.blankCheck => l10n.blankCheck,
+            OperationKind.program => l10n.program,
+            OperationKind.verify => l10n.verify,
+          };
+          return AlertDialog(
+            scrollable: true,
+            title: Text(l10n.confirmPhysicalOperation(operationName)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l10n.targetAlias(_targetLabel(c, c.selectedProfile))),
+                Text(
+                  l10n.capacityBytes(
+                    c.selectedProfile?.capacityBytes?.toString() ?? '—',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(l10n.physicalOperationWarning),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: acknowledged,
+                  onChanged: (value) =>
+                      setDialogState(() => acknowledged = value ?? false),
+                  title: Text(l10n.confirmIcAndSetupChecked),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text(l10n.cancel),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                'Confirm the IC alias, orientation, socket placement, and any required adapter before continuing. This catalog entry is upstream-defined and is not proof of physical support.',
-              ),
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                value: acknowledged,
-                onChanged: (value) =>
-                    setDialogState(() => acknowledged = value ?? false),
-                title: const Text('I have checked the IC and setup.'),
+              FilledButton(
+                onPressed: acknowledged
+                    ? () => Navigator.of(context).pop(true)
+                    : null,
+                child: Text(l10n.startOperation(operationName)),
               ),
             ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: acknowledged
-                  ? () => Navigator.of(context).pop(true)
-                  : null,
-              child: Text('Start $operation'),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
     if (accepted == true && mounted) await start();
@@ -355,52 +473,96 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
     );
   }
 
-  Widget _bottomStatusBar(ProgrammerController c) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          Icon(
-            _connectionIcon(c.connectionStatus),
-            color: _connectionColor(c.connectionStatus),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _connectionLabel(c),
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                Text(
-                  '${_phaseLabel(c.phase)}: ${c.message ?? 'No operation in progress.'}',
-                ),
-                if (c.isBusy)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      c.usingSimulation
-                          ? 'Operation in progress — do not touch the programmer, IC or USB cable. Simulation only.'
-                          : 'Operation in progress — do not touch the programmer, IC or USB cable.',
-                      style: TextStyle(fontWeight: FontWeight.w600),
+  Widget _bottomStatusBar(ProgrammerController c) {
+    final l10n = AppLocalizations.of(context)!;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Icon(
+              _connectionIcon(c.connectionStatus),
+              color: _connectionColor(c.connectionStatus),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _connectionLabel(c),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: c.connectionStatus == ConnectionStatus.disconnected
+                          ? Theme.of(context).colorScheme.error
+                          : null,
                     ),
                   ),
-              ],
+                  Text(
+                    l10n.phaseStatus(
+                      _phaseLabel(c.phase),
+                      c.uiMessage == null
+                          ? (c.message ?? l10n.noOperationInProgress)
+                          : localizeMessage(l10n, c.uiMessage!),
+                    ),
+                    style: TextStyle(
+                      color:
+                          c.connectionStatus == ConnectionStatus.disconnected ||
+                              c.phase == OperationPhase.failed ||
+                              c.phase == OperationPhase.recoveryRequired
+                          ? Theme.of(context).colorScheme.error
+                          : null,
+                    ),
+                  ),
+                  if (c.technicalDetail?.isNotEmpty == true)
+                    TextButton(
+                      onPressed: () => showDialog<void>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: Text(
+                            AppLocalizations.of(context)!.technicalDetails,
+                          ),
+                          content: SingleChildScrollView(
+                            child: SelectableText(c.technicalDetail ?? ''),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: Text(AppLocalizations.of(context)!.close),
+                            ),
+                          ],
+                        ),
+                      ),
+                      child: Text(l10n.technicalDetails),
+                    ),
+                  if (c.isBusy)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        c.usingSimulation
+                            ? l10n.operationInProgressSimulationWarning
+                            : l10n.operationInProgressWarning,
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-          OutlinedButton(
-            onPressed: c.isBusy || c.needsProgramConfirmation
-                ? null
-                : c.connectProgrammer,
-            child: Text(
-              c.usingSimulation ? 'Refresh simulation' : 'Refresh TL866CS',
+            OutlinedButton(
+              onPressed: c.isBusy || c.needsProgramConfirmation
+                  ? null
+                  : c.connectProgrammer,
+              child: Text(
+                c.usingSimulation
+                    ? l10n.refreshSimulation
+                    : l10n.refreshTl866cs,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   IconData _connectionIcon(ConnectionStatus status) => switch (status) {
     ConnectionStatus.ready => Icons.usb,
@@ -416,261 +578,381 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
     ConnectionStatus.disconnected => null,
   };
 
-  String _connectionLabel(
-    ProgrammerController c,
-  ) => switch (c.connectionStatus) {
-    ConnectionStatus.ready =>
-      c.usingSimulation
-          ? 'Simulation connected · ${c.connection?.model ?? 'mock programmer'} · ${c.connection?.firmware ?? 'firmware unknown'}'
-          : c.backendStatus,
-    ConnectionStatus.busy =>
-      c.usingSimulation
-          ? 'Simulation connected · operation in progress'
-          : 'TL866CS connected · operation in progress',
-    ConnectionStatus.unknown =>
-      c.usingSimulation
-          ? 'Checking simulation connection…'
-          : 'Checking TL866CS connection…',
-    ConnectionStatus.disconnected =>
-      c.usingSimulation ? 'Simulation disconnected' : c.backendStatus,
-  };
+  String _connectionLabel(ProgrammerController c) =>
+      switch (c.connectionStatus) {
+        ConnectionStatus.ready =>
+          c.usingSimulation
+              ? AppLocalizations.of(context)!.simulationConnected(
+                  c.connection?.model ??
+                      AppLocalizations.of(context)!.mockProgrammer,
+                  c.connection?.firmware ??
+                      AppLocalizations.of(context)!.firmwareUnknown,
+                )
+              : localizeMessage(
+                  AppLocalizations.of(context)!,
+                  c.backendStatusMessage,
+                ),
+        ConnectionStatus.busy =>
+          c.usingSimulation
+              ? AppLocalizations.of(context)!
+                    .simulationConnectedOperationInProgress
+              : AppLocalizations.of(context)!
+                    .tl866csConnectedOperationInProgress,
+        ConnectionStatus.unknown =>
+          c.usingSimulation
+              ? AppLocalizations.of(context)!.checkingSimulationConnection
+              : AppLocalizations.of(context)!.checkingTl866csConnection,
+        ConnectionStatus.disconnected =>
+          c.usingSimulation
+              ? AppLocalizations.of(context)!.simulationDisconnected
+              : localizeMessage(
+                  AppLocalizations.of(context)!,
+                  c.backendStatusMessage,
+                ),
+      };
 
   String _phaseLabel(OperationPhase phase) => switch (phase) {
-    OperationPhase.idle => 'Idle',
-    OperationPhase.awaitingConfirmation => 'Awaiting confirmation',
-    OperationPhase.preparing => 'Preparing',
-    OperationPhase.running => 'Running',
-    OperationPhase.reading => 'Reading',
-    OperationPhase.blankChecking => 'Blank checking',
-    OperationPhase.programming => 'Programming',
-    OperationPhase.readingBack => 'Reading back',
-    OperationPhase.comparing => 'Comparing',
-    OperationPhase.succeeded => 'Completed',
-    OperationPhase.failed => 'Failed',
-    OperationPhase.cancelled => 'Cancelled',
-    OperationPhase.recoveryRequired => 'Recovery required',
+    OperationPhase.idle => AppLocalizations.of(context)!.phaseIdle,
+    OperationPhase.awaitingConfirmation => AppLocalizations.of(
+      context,
+    )!.phaseAwaitingConfirmation,
+    OperationPhase.preparing => AppLocalizations.of(context)!.phasePreparing,
+    OperationPhase.running => AppLocalizations.of(context)!.phaseRunning,
+    OperationPhase.reading => AppLocalizations.of(context)!.phaseReading,
+    OperationPhase.blankChecking => AppLocalizations.of(
+      context,
+    )!.phaseBlankChecking,
+    OperationPhase.programming => AppLocalizations.of(
+      context,
+    )!.phaseProgramming,
+    OperationPhase.readingBack => AppLocalizations.of(
+      context,
+    )!.phaseReadingBack,
+    OperationPhase.comparing => AppLocalizations.of(context)!.phaseComparing,
+    OperationPhase.succeeded => AppLocalizations.of(context)!.phaseCompleted,
+    OperationPhase.failed => AppLocalizations.of(context)!.phaseFailed,
+    OperationPhase.cancelled => AppLocalizations.of(context)!.phaseCancelled,
+    OperationPhase.recoveryRequired => AppLocalizations.of(
+      context,
+    )!.phaseRecoveryRequired,
   };
 
-  Widget _setupCard(ProgrammerController c) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(12),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 8,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          SizedBox(
-            width: 200,
-            child: DropdownButtonFormField<ProgrammerOption>(
-              initialValue: c.selectedProgrammer,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Programmer'),
-              items: c.availableProgrammers
-                  .map(
-                    (programmer) => DropdownMenuItem(
-                      value: programmer,
-                      enabled: programmer.available,
-                      child: Text(
-                        programmer.available
-                            ? programmer.label
-                            : '${programmer.label} (future)',
-                        overflow: TextOverflow.ellipsis,
+  Widget _setupCard(ProgrammerController c) {
+    final l10n = AppLocalizations.of(context)!;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Wrap(
+          spacing: 12,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            const LanguageSelector(),
+            SizedBox(
+              width: 200,
+              child: DropdownButtonFormField<ProgrammerOption>(
+                initialValue: c.selectedProgrammer,
+                isExpanded: true,
+                decoration: InputDecoration(labelText: l10n.programmer),
+                items: c.availableProgrammers
+                    .map(
+                      (programmer) => DropdownMenuItem(
+                        value: programmer,
+                        enabled: programmer.available,
+                        child: Text(
+                          programmer.available
+                              ? programmer.label
+                              : l10n.futureProgrammer(programmer.label),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                  )
-                  .toList(growable: false),
-              onChanged: c.isBusy || c.needsProgramConfirmation
-                  ? null
-                  : (value) {
-                      if (value == null) {
-                        return;
-                      }
-                      c.selectProgrammer(value);
-                    },
-            ),
-          ),
-          SizedBox(
-            width: 220,
-            child: DropdownButtonFormField<String>(
-              key: ValueKey(
-                'vendor:${c.selectedProgrammer.id}:${c.selectedVendor}',
+                    )
+                    .toList(growable: false),
+                onChanged: c.isBusy || c.needsProgramConfirmation
+                    ? null
+                    : (value) {
+                        if (value == null) {
+                          return;
+                        }
+                        c.selectProgrammer(value);
+                      },
               ),
-              initialValue: c.selectedVendor,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Vendor'),
-              hint: const Text('Choose a vendor'),
-              items: c.availableVendors
-                  .map(
-                    (vendor) => DropdownMenuItem(
-                      value: vendor,
-                      child: Text(vendor, overflow: TextOverflow.ellipsis),
-                    ),
-                  )
-                  .toList(growable: false),
-              onChanged: c.isBusy || c.needsProgramConfirmation
-                  ? null
-                  : (value) {
-                      c.selectVendor(value);
-                    },
             ),
-          ),
-          SizedBox(width: 300, child: _catalogDeviceSelector(c)),
-          if (c.selectedDevice != null && !c.usingSimulation)
-            Text(
-              _hardwareEvaluationLabel(c.selectedProfile),
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          OutlinedButton.icon(
-            onPressed: c.isBusy || c.needsProgramConfirmation ? null : _openBin,
-            icon: const Icon(Icons.folder_open),
-            label: const Text('Open BIN'),
-          ),
-          if (c.selectedProfile != null)
-            Text(
-              'Target: ${c.selectedProfile!.displayName} · ${c.selectedProfile!.capacityBytes ?? '—'} bytes',
-            ),
-          if (c.blockedReason != null)
-            Text(
-              c.blockedReason!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-        ],
+            SizedBox(width: 220, child: _vendorSelector(c)),
+            SizedBox(width: 300, child: _catalogDeviceSelector(c)),
+            if (c.selectedDevice != null && !c.usingSimulation)
+              Text(
+                _hardwareEvaluationLabel(c.selectedProfile),
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            if (c.selectedProfile != null)
+              Text(
+                l10n.targetWithCapacity(
+                  c.selectedProfile!.displayName,
+                  c.selectedProfile!.capacityBytes?.toString() ?? '—',
+                ),
+              ),
+            if (c.blockedReason != null &&
+                c.connectionStatus != ConnectionStatus.disconnected)
+              Text(
+                c.blockedUiMessage == null
+                    ? c.blockedReason!
+                    : localizeMessage(l10n, c.blockedUiMessage!),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   String _hardwareEvaluationLabel(DeviceProfile? profile) {
     if (profile?.isTl866Executable != true) {
-      return 'Unsupported for authorized hardware evaluation';
+      return AppLocalizations.of(context)!
+          .unsupportedForAuthorizedHardwareEvaluation;
     }
-    if (profile!.verified) return 'Hardware profile validated';
-    return 'Hardware evaluation · not yet validated on this IC';
+    if (profile!.verified) {
+      return AppLocalizations.of(context)!.hardwareProfileValidated;
+    }
+    return AppLocalizations.of(context)!.hardwareEvaluationNotYetValidated;
   }
 
-  Widget _catalogDeviceSelector(
-    ProgrammerController c,
-  ) => Autocomplete<CatalogDevice>(
-    key: ValueKey('${c.selectedVendor}:${c.selectedDevice?.id}'),
-    displayStringForOption: (device) => device.label,
-    initialValue: TextEditingValue(text: c.selectedDevice?.label ?? ''),
-    optionsBuilder: (value) {
-      if (c.selectedVendor == null) {
-        return const Iterable<CatalogDevice>.empty();
-      }
-      return c.findCatalogDevices(query: value.text, limit: null);
-    },
-    onSelected: c.selectDevice,
-    fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
-      return TextFormField(
-        controller: controller,
-        focusNode: focusNode,
-        enabled:
-            !c.isBusy &&
-            !c.needsProgramConfirmation &&
-            c.selectedVendor != null,
-        decoration: InputDecoration(
-          labelText: 'Device',
-          hintText: c.selectedVendor == null
-              ? 'Choose a vendor first'
-              : 'Search all ${c.selectedVendorDeviceCount} device records',
-          suffixIcon: IconButton(
-            tooltip: 'Show all devices for selected vendor',
-            onPressed: c.selectedVendor == null
-                ? null
-                : () => focusNode.requestFocus(),
-            icon: const Icon(Icons.arrow_drop_down),
+  Widget _vendorSelector(ProgrammerController c) {
+    final l10n = AppLocalizations.of(context)!;
+    final enabled = !c.isBusy && !c.needsProgramConfirmation;
+    return Semantics(
+      key: const ValueKey('vendor-selector'),
+      button: true,
+      child: InkWell(
+        key: _vendorSelectorKey,
+        onTap: enabled ? () => _openVendorSelector(c) : null,
+        child: InputDecorator(
+          decoration: InputDecoration(
+            labelText: l10n.vendor,
+            suffixIcon: const Icon(Icons.arrow_drop_down),
+          ),
+          child: Text(
+            c.selectedVendor ?? l10n.chooseVendor,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
-      );
-    },
-    optionsViewBuilder: (context, onSelected, options) => Align(
-      alignment: Alignment.topLeft,
-      child: Material(
-        elevation: 4,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 280, maxWidth: 420),
-          child: ListView.builder(
-            padding: EdgeInsets.zero,
-            itemCount: options.length,
-            itemBuilder: (context, index) {
-              final device = options.elementAt(index);
-              return ListTile(
-                dense: true,
-                title: Text(device.label, overflow: TextOverflow.ellipsis),
-                subtitle: Text(
-                  '${device.kindLabel} · ${device.pins ?? 'pins unspecified'}',
-                  overflow: TextOverflow.ellipsis,
-                ),
-                onTap: () => onSelected(device),
-              );
-            },
+      ),
+    );
+  }
+
+  Future<void> _openVendorSelector(ProgrammerController c) async {
+    if (c.isBusy || c.needsProgramConfirmation) return;
+    final programmer = c.selectedProgrammer;
+    final vendors = c.availableVendors;
+    final selected = await showTypeaheadSelector<String>(
+      context: context,
+      title: AppLocalizations.of(context)!.vendor,
+      options: vendors,
+      labelOf: (vendor) => vendor,
+      initialValue: c.selectedVendor,
+      anchor: _renderBox(_vendorSelectorKey),
+    );
+    if (!mounted ||
+        selected == null ||
+        c.isBusy ||
+        c.needsProgramConfirmation ||
+        c.selectedProgrammer != programmer ||
+        !c.availableVendors.contains(selected)) {
+      return;
+    }
+    c.selectVendor(selected);
+  }
+
+  RenderBox? _renderBox(GlobalKey key) =>
+      key.currentContext?.findRenderObject() as RenderBox?;
+
+  Widget _catalogDeviceSelector(ProgrammerController c) => KeyedSubtree(
+    key: _deviceSelectorKey,
+    child: Autocomplete<CatalogDevice>(
+      key: ValueKey('${c.selectedVendor}:${c.selectedDevice?.id}'),
+      displayStringForOption: (device) => device.label,
+      initialValue: TextEditingValue(text: c.selectedDevice?.label ?? ''),
+      optionsBuilder: (value) {
+        if (c.selectedVendor == null) {
+          return const Iterable<CatalogDevice>.empty();
+        }
+        return c.findCatalogDevices(query: value.text, limit: null);
+      },
+      onSelected: (device) {
+        if (!c.isBusy && !c.needsProgramConfirmation) c.selectDevice(device);
+      },
+      fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+        return TextFormField(
+          controller: controller,
+          focusNode: focusNode,
+          onFieldSubmitted: (_) => onSubmitted(),
+          enabled:
+              !c.isBusy &&
+              !c.needsProgramConfirmation &&
+              c.selectedVendor != null,
+          decoration: InputDecoration(
+            labelText: AppLocalizations.of(context)!.device,
+            hintText: c.selectedVendor == null
+                ? AppLocalizations.of(context)!.chooseVendorFirst
+                : AppLocalizations.of(context)!
+                      .searchAllDeviceRecords(c.selectedVendorDeviceCount),
+            suffixIcon: KeyedSubtree(
+              key: const ValueKey('device-dropdown'),
+              child: IconButton(
+                tooltip: AppLocalizations.of(context)!.showAllDevicesForVendor,
+                onPressed:
+                    c.selectedVendor == null ||
+                        c.isBusy ||
+                        c.needsProgramConfirmation
+                    ? null
+                    : () => _openDeviceSelector(c),
+                icon: const Icon(Icons.arrow_drop_down),
+              ),
+            ),
+          ),
+        );
+      },
+      optionsViewBuilder: (context, onSelected, options) => Align(
+        alignment: Alignment.topLeft,
+        child: Material(
+          elevation: 4,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 280, maxWidth: 420),
+            child: _DeviceAutocompleteOptions(
+              options: options.toList(growable: false),
+              onSelected: onSelected,
+              secondaryLabelOf: (device) =>
+                  AppLocalizations.of(context)!.deviceKindAndPins(
+                    _deviceKindLabel(device),
+                    device.pins?.toString() ??
+                        AppLocalizations.of(context)!.pinsUnspecified,
+                  ),
+            ),
           ),
         ),
       ),
     ),
   );
 
-  Widget _operations(ProgrammerController c) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              FilledButton(
-                onPressed: c.canRead
-                    ? () => _startOperation(c, 'read', c.read)
-                    : null,
-                child: const Text('Read'),
-              ),
-              OutlinedButton(
-                onPressed: c.canBlankCheck
-                    ? () => _startOperation(c, 'blank check', c.blankCheck)
-                    : null,
-                child: const Text('Blank check'),
-              ),
-              FilledButton.tonal(
-                onPressed: c.canProgram
-                    ? () => _startOperation(
-                        c,
-                        'program',
-                        () async => c.requestProgram(),
-                      )
-                    : null,
-                child: const Text('Program'),
-              ),
-              OutlinedButton(
-                onPressed: c.canVerify
-                    ? () => _startOperation(c, 'verify', c.verify)
-                    : null,
-                child: const Text('Verify'),
-              ),
-              if (c.isBusy)
-                TextButton(
-                  onPressed: c.cancelActiveOperation,
-                  child: const Text('Cancel'),
-                ),
-            ],
+  Future<void> _openDeviceSelector(ProgrammerController c) async {
+    final vendor = c.selectedVendor;
+    if (vendor == null || c.isBusy || c.needsProgramConfirmation) return;
+    final devices = c.findCatalogDevices(query: '', limit: null);
+    final selected = await showTypeaheadSelector<CatalogDevice>(
+      context: context,
+      title: AppLocalizations.of(context)!.device,
+      options: devices,
+      labelOf: (device) => device.label,
+      secondaryLabelOf: (device) =>
+          AppLocalizations.of(context)!.deviceKindAndPins(
+            _deviceKindLabel(device),
+            device.pins?.toString() ??
+                AppLocalizations.of(context)!.pinsUnspecified,
           ),
-          if (c.progress != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: LinearProgressIndicator(value: c.progress),
+      initialValue: c.selectedDevice,
+      anchor: _renderBox(_deviceSelectorKey),
+    );
+    if (!mounted ||
+        selected == null ||
+        c.isBusy ||
+        c.needsProgramConfirmation ||
+        c.selectedVendor != vendor ||
+        !c
+            .findCatalogDevices(query: '', limit: null)
+            .any((device) => device.id == selected.id)) {
+      return;
+    }
+    c.selectDevice(selected);
+  }
+
+  String _deviceKindLabel(CatalogDevice device) {
+    final l10n = AppLocalizations.of(context)!;
+    return switch (device.type) {
+      '1' => l10n.deviceTypeEepromMemory,
+      '2' => l10n.deviceTypeMcuMpu,
+      '3' => l10n.deviceTypePldCpld,
+      '4' => l10n.deviceTypeSram,
+      '5' => l10n.deviceTypeLogic,
+      '6' => l10n.deviceTypeNand,
+      '7' => l10n.deviceTypeEmmc,
+      '8' => l10n.deviceTypeVgaHdmi,
+      _ => l10n.deviceTypeUnspecified,
+    };
+  }
+
+  Widget _operations(ProgrammerController c) {
+    final l10n = AppLocalizations.of(context)!;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton(
+                  onPressed: c.canRead
+                      ? () => _startOperation(c, OperationKind.read, c.read)
+                      : null,
+                  child: Text(l10n.read),
+                ),
+                OutlinedButton(
+                  onPressed: c.canBlankCheck
+                      ? () => _startOperation(
+                          c,
+                          OperationKind.blankCheck,
+                          c.blankCheck,
+                        )
+                      : null,
+                  child: Text(l10n.blankCheck),
+                ),
+                FilledButton.tonal(
+                  onPressed: c.canProgram
+                      ? () => _startOperation(
+                          c,
+                          OperationKind.program,
+                          () async => c.requestProgram(),
+                        )
+                      : null,
+                  child: Text(l10n.program),
+                ),
+                OutlinedButton(
+                  onPressed: c.canVerify
+                      ? () => _startOperation(c, OperationKind.verify, c.verify)
+                      : null,
+                  child: Text(l10n.verify),
+                ),
+                if (c.isBusy)
+                  TextButton(
+                    onPressed: c.cancelActiveOperation,
+                    child: Text(l10n.cancel),
+                  ),
+              ],
             ),
-          if (c.lastResult?.mismatch != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                'First mismatch: 0x${c.lastResult!.mismatch!.address.toRadixString(16).toUpperCase()} · ${c.lastResult!.mismatchCount} difference(s)',
+            if (c.progress != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: LinearProgressIndicator(value: c.progress),
               ),
-            ),
-        ],
+            if (c.lastResult?.mismatch != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  l10n.firstMismatch(
+                    c.lastResult!.mismatch!.address
+                        .toRadixString(16)
+                        .toUpperCase(),
+                    c.lastResult!.mismatchCount,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   @override
   void didUpdateWidget(covariant ProgrammerScreen oldWidget) {

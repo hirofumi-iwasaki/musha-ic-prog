@@ -3,6 +3,7 @@
 import '../models/device_profile.dart';
 import '../models/operation.dart';
 import '../models/programmer.dart';
+import '../models/ui_message.dart';
 
 abstract interface class ProgrammerBackend {
   String get backendId;
@@ -25,6 +26,14 @@ abstract interface class ProgrammerDiscoveryDiagnostics {
   String? get discoveryReason;
 }
 
+/// Optional semantic counterpart to [ProgrammerDiscoveryDiagnostics].
+///
+/// Kept separate so existing diagnostics-only backends retain their contract.
+abstract interface class ProgrammerDiscoveryUiMessages {
+  /// Typed explanation for a discovery failure, when it is app-owned.
+  UiMessage? get discoveryUiMessage;
+}
+
 final class BackendCapabilities {
   const BackendCapabilities({
     this.canRead = false,
@@ -32,6 +41,7 @@ final class BackendCapabilities {
     this.canProgram = false,
     this.canVerify = false,
     this.reason,
+    this.uiReason,
   });
 
   final bool canRead;
@@ -39,6 +49,7 @@ final class BackendCapabilities {
   final bool canProgram;
   final bool canVerify;
   final String? reason;
+  final UiMessage? uiReason;
 }
 
 abstract interface class OperationHandle {

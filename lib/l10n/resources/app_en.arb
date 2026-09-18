@@ -1,0 +1,456 @@
+{
+  "@@locale": "en",
+  "catalogLoadFailed": "The offline device catalog could not be loaded.",
+  "@catalogLoadFailed": {
+    "description": "catalogLoadFailed"
+  },
+  "retry": "Retry",
+  "@retry": {
+    "description": "retry"
+  },
+  "languageSaveFailed": "The language setting could not be saved. This selection applies until you close the app.",
+  "@languageSaveFailed": {
+    "description": "languageSaveFailed"
+  },
+  "languageLoadFailed": "The saved language setting could not be read. Using the system language.",
+  "@languageLoadFailed": {
+    "description": "languageLoadFailed"
+  },
+  "technicalDetails": "Technical details",
+  "@technicalDetails": {
+    "description": "technicalDetails"
+  },
+  "close": "Close",
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Generic cancel action."
+  },
+  "programmer": "Programmer",
+  "vendor": "Vendor",
+  "device": "Device",
+  "openBinButton": "Open BIN",
+  "read": "Read",
+  "blankCheck": "Blank check",
+  "program": "Program",
+  "verify": "Verify",
+  "waitForOperationToFinish": "Wait for the current operation to finish before closing.",
+  "programSimulatedIcTitle": "Program simulated IC?",
+  "programIcTitle": "Program IC?",
+  "programSimulationConfirmation": "This simulation will write the immutable snapshot {name} ({bytes} bytes), then read it back and verify every byte.\n\nTarget alias: {target}\nCapacity: {capacity} bytes\nSHA-1: {sha1}\n\nNo physical hardware is controlled.",
+  "@programSimulationConfirmation": {
+    "description": "Confirmation before a simulated program operation.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "bytes": {
+        "type": "int"
+      },
+      "target": {
+        "type": "String"
+      },
+      "capacity": {
+        "type": "String"
+      },
+      "sha1": {
+        "type": "String"
+      }
+    }
+  },
+  "programConfirmation": "This operation will write the immutable snapshot {name} ({bytes} bytes), then read it back and verify every byte.\n\nTarget alias: {target}\nCapacity: {capacity} bytes\nSHA-1: {sha1}",
+  "@programConfirmation": {
+    "description": "Confirmation before a physical program operation.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "bytes": {
+        "type": "int"
+      },
+      "target": {
+        "type": "String"
+      },
+      "capacity": {
+        "type": "String"
+      },
+      "sha1": {
+        "type": "String"
+      }
+    }
+  },
+  "programSimulation": "Program simulation",
+  "droppedFileCouldNotBeOpened": "The dropped file could not be opened.",
+  "dropFileOnInputBin": "Drop a file on the Input BIN panel.",
+  "droppedItemNotReadableFile": "The dropped item is not a readable file.",
+  "binFileCouldNotBeOpened": "The BIN file could not be opened.",
+  "anotherInputFileLoading": "Another input file is still loading.",
+  "waitForOperationBeforeOpeningFile": "Wait for the current operation before opening a file.",
+  "binFileTooLarge": "BIN files larger than 64 MiB are not supported yet.",
+  "selectedDevice": "the selected device",
+  "confirmPhysicalOperation": "Confirm physical {operation}",
+  "@confirmPhysicalOperation": {
+    "description": "Title for a physical operation safety dialog.",
+    "placeholders": {
+      "operation": {
+        "type": "String"
+      }
+    }
+  },
+  "targetAlias": "Target alias: {target}",
+  "@targetAlias": {
+    "description": "Target alias field.",
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "capacityBytes": "Capacity: {capacity} bytes",
+  "@capacityBytes": {
+    "description": "Capacity field.",
+    "placeholders": {
+      "capacity": {
+        "type": "String"
+      }
+    }
+  },
+  "physicalOperationWarning": "Confirm the IC alias, orientation, socket placement, and any required adapter before continuing. This catalog entry is upstream-defined and is not proof of physical support.",
+  "confirmIcAndSetupChecked": "I have checked the IC and setup.",
+  "startOperation": "Start {operation}",
+  "@startOperation": {
+    "description": "Starts a named operation.",
+    "placeholders": {
+      "operation": {
+        "type": "String"
+      }
+    }
+  },
+  "phaseStatus": "{phase}: {message}",
+  "@phaseStatus": {
+    "description": "Operation phase and its status message.",
+    "placeholders": {
+      "phase": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "noOperationInProgress": "No operation in progress.",
+  "operationInProgressWarning": "Operation in progress — do not touch the programmer, IC or USB cable.",
+  "operationInProgressSimulationWarning": "Operation in progress — do not touch the programmer, IC or USB cable. Simulation only.",
+  "refreshSimulation": "Refresh simulation",
+  "refreshTl866cs": "Refresh TL866CS",
+  "simulationConnected": "Simulation connected · {model} · {firmware}",
+  "@simulationConnected": {
+    "description": "Simulation connection summary.",
+    "placeholders": {
+      "model": {
+        "type": "String"
+      },
+      "firmware": {
+        "type": "String"
+      }
+    }
+  },
+  "mockProgrammer": "mock programmer",
+  "firmwareUnknown": "firmware unknown",
+  "simulationConnectedOperationInProgress": "Simulation connected · operation in progress",
+  "tl866csConnectedOperationInProgress": "TL866CS connected · operation in progress",
+  "checkingSimulationConnection": "Checking simulation connection…",
+  "checkingTl866csConnection": "Checking TL866CS connection…",
+  "simulationDisconnected": "Simulation disconnected",
+  "phaseIdle": "Idle",
+  "phaseAwaitingConfirmation": "Awaiting confirmation",
+  "phasePreparing": "Preparing",
+  "phaseRunning": "Running",
+  "phaseReading": "Reading",
+  "phaseBlankChecking": "Blank checking",
+  "phaseProgramming": "Programming",
+  "phaseReadingBack": "Reading back",
+  "phaseComparing": "Comparing",
+  "phaseCompleted": "Completed",
+  "phaseFailed": "Failed",
+  "phaseCancelled": "Cancelled",
+  "phaseRecoveryRequired": "Recovery required",
+  "futureProgrammer": "{programmer} (future)",
+  "@futureProgrammer": {
+    "description": "Unavailable future programmer option.",
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "chooseVendor": "Choose a vendor",
+  "targetWithCapacity": "Target: {target} · {capacity} bytes",
+  "@targetWithCapacity": {
+    "description": "Selected target and capacity.",
+    "placeholders": {
+      "target": {
+        "type": "String"
+      },
+      "capacity": {
+        "type": "String"
+      }
+    }
+  },
+  "unsupportedForAuthorizedHardwareEvaluation": "Unsupported for authorized hardware evaluation",
+  "hardwareProfileValidated": "Hardware profile validated",
+  "hardwareEvaluationNotYetValidated": "Hardware evaluation · not yet validated on this IC",
+  "chooseVendorFirst": "Choose a vendor first",
+  "searchAllDeviceRecords": "Search all {count} device records",
+  "@searchAllDeviceRecords": {
+    "description": "Device selector hint.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "showAllDevicesForVendor": "Show all devices for selected vendor",
+  "pinsUnspecified": "pins unspecified",
+  "deviceKindAndPins": "{kind} · {pins}",
+  "@deviceKindAndPins": {
+    "description": "Catalog device type and pin count.",
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "pins": {
+        "type": "String"
+      }
+    }
+  },
+  "deviceTypeEepromMemory": "EEPROM / memory",
+  "deviceTypeMcuMpu": "MCU / MPU",
+  "deviceTypePldCpld": "PLD / CPLD",
+  "deviceTypeSram": "SRAM",
+  "deviceTypeLogic": "Logic",
+  "deviceTypeNand": "NAND",
+  "deviceTypeEmmc": "eMMC",
+  "deviceTypeVgaHdmi": "VGA / HDMI",
+  "deviceTypeUnspecified": "Unspecified",
+  "firstMismatch": "First mismatch: 0x{address} · {count} difference(s)",
+  "@firstMismatch": {
+    "description": "First binary mismatch and total count.",
+    "placeholders": {
+      "address": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "viewerJumpToAddress": "Jump to address",
+  "viewerHexadecimalAddress": "Hexadecimal address",
+  "viewerJump": "Jump",
+  "viewerAddressOutsideSnapshot": "That address is outside this snapshot.",
+  "viewerNoDifferencesFound": "No differences found.",
+  "viewerInputBin": "Input BIN",
+  "viewerIcReadout": "IC Readout",
+  "viewerBytesPerRow": "{count} bytes",
+  "@viewerBytesPerRow": {
+    "description": "Column count selector.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "viewerPreviousDifference": "Previous difference",
+  "viewerNextDifference": "Next difference",
+  "viewerDropFileToOpen": "Drop a file here to open",
+  "viewerReadIcFromProgrammer": "Read IC from programmer",
+  "viewerInputDropRegion": "Input BIN drop region",
+  "viewerReadoutEmptyRegion": "IC Readout empty region",
+  "viewerNoSnapshot": "{title} · no snapshot",
+  "@viewerNoSnapshot": {
+    "description": "Empty snapshot summary.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "viewerReadOnly": "{title} · Read only",
+  "@viewerReadOnly": {
+    "description": "Snapshot summary header.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "viewerImageSize": "{name} · {bytes} bytes",
+  "@viewerImageSize": {
+    "description": "Snapshot name and size.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "bytes": {
+        "type": "int"
+      }
+    }
+  },
+  "viewerPreviousSuccessfulReadout": "{origin} · previous successful readout",
+  "@viewerPreviousSuccessfulReadout": {
+    "description": "Origin of a stale snapshot.",
+    "placeholders": {
+      "origin": {
+        "type": "String"
+      }
+    }
+  },
+  "viewerOriginInputBin": "Input BIN",
+  "viewerOriginIcReadoutSnapshot": "IC readout snapshot",
+  "viewerOriginPostWriteVerificationSnapshot": "Post-write verification snapshot",
+  "viewerNoByteSelected": "No byte selected",
+  "viewerByteSelection": "Address {address}, value {hex}, decimal {decimal}, binary {binary}, ASCII {ascii}",
+  "@viewerByteSelection": {
+    "description": "Accessibility label for selected byte.",
+    "placeholders": {
+      "address": {
+        "type": "String"
+      },
+      "hex": {
+        "type": "String"
+      },
+      "decimal": {
+        "type": "int"
+      },
+      "binary": {
+        "type": "String"
+      },
+      "ascii": {
+        "type": "String"
+      }
+    }
+  },
+  "viewerChecksumCalculating": "Calculating…",
+  "viewerAddress": "Address",
+  "viewerHex": "HEX",
+  "viewerDecimal": "Decimal",
+  "viewerBinary": "Binary",
+  "viewerAscii": "ASCII",
+  "backendSimulation": "Simulation backend",
+  "backendNotConnected": "TL866CS not connected",
+  "backendConnected": "TL866CS connected ({identifier})",
+  "@backendConnected": {
+    "placeholders": {
+      "identifier": {}
+    }
+  },
+  "operationAlreadyRunning": "Another operation is already running.",
+  "connectOneProgrammer": "Connect exactly one programmer first.",
+  "chooseProfile": "Choose a device profile first.",
+  "profileNoMemoryOperations": "The selected profile does not support memory operations.",
+  "openBin": "Open a BIN file first.",
+  "inputSizeMismatch": "The input BIN must exactly match the IC capacity.",
+  "profileOutsideScope": "This database profile is outside the authorized TL866CS evaluation scope.",
+  "waitBeforeReconnect": "Wait for the current operation before reconnecting.",
+  "checkingSimulation": "Looking for the simulation programmer…",
+  "checkingTl866": "Checking one TL866CS connection…",
+  "programmerReady": "{model} ready.",
+  "@programmerReady": {
+    "placeholders": {
+      "model": {}
+    }
+  },
+  "identityCheckFailed": "Programmer identity check failed.",
+  "simulationSelected": "Simulation demo selected. Connect to use the mock programmer.",
+  "realProgrammerSelected": "TL866CS mode selected. Refresh connection status.",
+  "profileSelected": "Selected {profile}.",
+  "@profileSelected": {
+    "placeholders": {
+      "profile": {}
+    }
+  },
+  "inputOpened": "Opened {label} ({count} bytes).",
+  "@inputOpened": {
+    "placeholders": {
+      "label": {},
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "inputTooLarge": "BIN files larger than 64 MiB are not supported yet.",
+  "confirmProgram": "Confirm program to write the immutable input snapshot.",
+  "programCancelled": "Program cancelled before writing.",
+  "operationCouldNotStart": "Operation could not start.",
+  "reconnectBeforeOperation": "Refresh the TL866CS connection before another operation.",
+  "reading": "Reading code memory.",
+  "blankChecking": "Checking code memory blank state.",
+  "programming": "Programming immutable input snapshot.",
+  "readingBack": "Reading code memory after write.",
+  "comparing": "Comparing immutable input snapshot.",
+  "readSucceeded": "Read {count} bytes.",
+  "@readSucceeded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "blankSucceeded": "IC code memory is blank.",
+  "verificationSucceeded": "Verification passed.",
+  "verificationFailed": "Verification failed.",
+  "programSucceeded": "Programmed and byte-verified {count} bytes.",
+  "@programSucceeded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "operationCancelled": "Operation stopped before the next hardware command.",
+  "identityChanged": "TL866CS identity changed; refresh before operating.",
+  "identityChangedBeforeWrite": "TL866CS identity changed before writing; no write was started.",
+  "postWriteVerificationFailed": "Post-write verification failed.",
+  "stopAfterWrite": "Stop requested after writing began; verify contents before continuing.",
+  "technicalFailure": "Programmer operation failed. See technical details.",
+  "backendUnsupportedProfile": "This profile is not approved for real TL866CS evaluation.",
+  "backendProfileValidationFailed": "The selected device profile could not be validated by minipro.",
+  "backendDiscoveryFailure": "The TL866CS connection check failed. See technical details.",
+  "backendWinUsbSetup": "Set up the WinUSB driver for TL866CS using the Windows installation instructions in README.md, then reconnect the programmer.",
+  "backendUsbAccessDenied": "USB access was denied. Check the OS USB permissions and driver setup, then reconnect the programmer.",
+  "backendBusy": "TL866CS is busy. Close other programmer software, then reconnect it.",
+  "backendNotDetected": "No TL866A/CS programmer was detected.",
+  "programmerDatabaseSelected": "Selected the {programmer} device database.",
+  "@programmerDatabaseSelected": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "chooseCatalogDevice": "Choose a device from the selected vendor and programmer database.",
+  "unsafeBinProfile": "{device} cannot be represented as a safe raw-BIN TL866CS profile.",
+  "@unsafeBinProfile": {
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "profileEmpiricallyValidated": "{device} has an empirical validation record.",
+  "@profileEmpiricallyValidated": {
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "profileAuthorizedNotValidated": "{device} is authorized for constrained hardware evaluation; it is not empirically validated.",
+  "@profileAuthorizedNotValidated": {
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  }
+}

@@ -3,6 +3,7 @@
 import 'binary_image.dart';
 import 'device_profile.dart';
 import 'programmer.dart';
+import 'ui_message.dart';
 
 enum OperationKind { read, blankCheck, program, verify }
 
@@ -44,12 +45,14 @@ final class OperationEvent {
     required this.phase,
     this.progress,
     this.message,
+    this.uiMessage,
   });
 
   final String operationId;
   final OperationPhase phase;
   final double? progress;
   final String? message;
+  final UiMessage? uiMessage;
 }
 
 final class Mismatch {
@@ -69,6 +72,8 @@ final class OperationResult {
     required this.operationId,
     required this.phase,
     required this.message,
+    this.uiMessage,
+    this.technicalDetail,
     this.image,
     this.mismatch,
     this.mismatchCount = 0,
@@ -77,6 +82,10 @@ final class OperationResult {
   final String operationId;
   final OperationPhase phase;
   final String message;
+  final UiMessage? uiMessage;
+
+  /// Untranslated minipro/OS output, shown only as a technical detail.
+  final String? technicalDetail;
   final BinaryImage? image;
   final Mismatch? mismatch;
   final int mismatchCount;

@@ -3,6 +3,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:mushagaeshi_ic_programmer/l10n/app_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mushagaeshi_ic_programmer/presentation/widgets/binary_viewer.dart';
 
@@ -28,7 +29,7 @@ void main() {
   }) => ViewerImage(
     bytes: Uint8List.fromList(values),
     name: name,
-    origin: 'Input file',
+    origin: ViewerImageOrigin.file,
     sha1: sha1,
   );
 
@@ -41,6 +42,9 @@ void main() {
     GlobalKey? inputDropRegionKey,
   }) => tester.pumpWidget(
     MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      locale: const Locale('en'),
       home: Scaffold(
         body: SizedBox(
           height: 600,
@@ -223,6 +227,9 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
           home: Scaffold(
             body: SizedBox(
               height: 600,
@@ -267,13 +274,61 @@ void main() {
     },
   );
 
+  testWidgets('each jump targets its own pane and open uses input callback', (
+    tester,
+  ) async {
+    var opens = 0;
+    await pumpViewer(
+      tester,
+      input: image([0x11]),
+      readout: image([0x22]),
+      onInputDropRequested: () => opens++,
+    );
+    await tester.tap(find.byKey(const ValueKey('input-open-file')));
+    expect(opens, 1);
+    for (final entry in {
+      'readout-jump': '00100010',
+      'input-jump': '00010001',
+    }.entries) {
+      await tester.tap(find.byKey(ValueKey(entry.key)));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), '0');
+      await tester.tap(find.text('Jump').last);
+      await tester.pumpAndSettle();
+      expect(find.text(entry.value), findsOneWidget);
+    }
+    await pumpViewer(
+      tester,
+      inputDropEnabled: false,
+      onInputDropRequested: () => opens++,
+    );
+    expect(
+      tester
+          .widget<OutlinedButton>(find.byKey(const ValueKey('input-open-file')))
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<OutlinedButton>(find.byKey(const ValueKey('input-jump')))
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<OutlinedButton>(find.byKey(const ValueKey('readout-jump')))
+          .onPressed,
+      isNull,
+    );
+  });
+
   testWidgets('jump keeps both populated panels vertically synchronized', (
     tester,
   ) async {
     final bytes = List<int>.generate(512, (index) => index);
     await pumpViewer(tester, input: image(bytes), readout: image(bytes));
 
-    await tester.tap(find.text('Jump'));
+    await tester.tap(find.byKey(const ValueKey('input-jump')));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), '100');
     await tester.tap(find.text('Jump').last);

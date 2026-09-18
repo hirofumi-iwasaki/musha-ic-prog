@@ -18,6 +18,7 @@ void main(List<String> args) {
     'README.ja.md',
     'pubspec.yaml',
     'pubspec.lock',
+    'l10n.yaml',
     'analysis_options.yaml',
     '.gitignore',
     '.gitattributes',

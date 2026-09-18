@@ -252,3 +252,7 @@ The accepted five-platform portability design is [CROSS_PLATFORM_0.2.0.md](CROSS
 It extends the macOS baseline with native Windows x64/ARM64 and Ubuntu x64/ARM64,
 while preserving the current TL866CS operation scope. See decisions D25–D29 and
 WORK_PLAN.md for implementation and native acceptance gates.
+
+## v0.3.0 localization
+
+The accepted [localization design and implementation record](LOCALIZATION_0.3.0.md) adds System/English/Japanese UI selection independently of programmer state. Language preferences load before the first frame; typed operation messages are translated at presentation time. Device identifiers, checksums, binary contents and minipro parsing locale remain unchanged. See D32 and the implementation record for platform-specific behavior and verification limits.

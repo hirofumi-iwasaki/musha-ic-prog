@@ -9,6 +9,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
+
 /// Azuki red used consistently for byte and snapshot checksum differences.
 Color azukiDifferenceBackground(Brightness brightness) =>
     brightness == Brightness.dark
@@ -16,20 +18,22 @@ Color azukiDifferenceBackground(Brightness brightness) =>
     : const Color(0xffffd9dd);
 
 /// An immutable byte snapshot to display.  The viewer never mutates [bytes].
+enum ViewerImageOrigin { file, readout, postWriteVerification }
+
 class ViewerImage {
   const ViewerImage({
     required this.bytes,
     required this.name,
     required this.origin,
-    this.sha1 = 'Calculating…',
+    this.sha1,
     this.capturedAt,
     this.stale = false,
   });
 
   final Uint8List bytes;
   final String name;
-  final String origin;
-  final String sha1;
+  final ViewerImageOrigin origin;
+  final String? sha1;
   final DateTime? capturedAt;
   final bool stale;
 
@@ -165,34 +169,38 @@ class _BinaryViewerState extends State<BinaryViewer> {
     }
   }
 
-  Future<void> _jump() async {
+  Future<void> _jump({bool? isLeft}) async {
+    final targetLeft = isLeft ?? _leftActive;
     final controller = TextEditingController(
       text: _selected?.toRadixString(16) ?? '0',
     );
     final value = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Jump to address'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Hexadecimal address',
-            prefixText: '0x',
+      builder: (dialogContext) {
+        final l10n = AppLocalizations.of(dialogContext)!;
+        return AlertDialog(
+          title: Text(l10n.viewerJumpToAddress),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: l10n.viewerHexadecimalAddress,
+              prefixText: '0x',
+            ),
+            onSubmitted: Navigator.of(context).pop,
           ),
-          onSubmitted: Navigator.of(context).pop,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(controller.text),
-            child: const Text('Jump'),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(l10n.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(controller.text),
+              child: Text(l10n.viewerJump),
+            ),
+          ],
+        );
+      },
     );
     final rawAddress = value?.trim().replaceFirst(
       RegExp(r'^0x', caseSensitive: false),
@@ -201,17 +209,21 @@ class _BinaryViewerState extends State<BinaryViewer> {
     final address = rawAddress == null
         ? null
         : int.tryParse(rawAddress, radix: 16);
-    final image = _active;
+    final image = targetLeft ? widget.input : widget.readout;
     if (!mounted) return;
     if (address != null &&
         image != null &&
         address >= 0 &&
         address < image.length) {
-      _select(address, _leftActive);
+      _select(address, targetLeft);
       _scrollSelectionIntoView();
     } else if (value != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('That address is outside this snapshot.')),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.viewerAddressOutsideSnapshot,
+          ),
+        ),
       );
     }
     // The dialog future resolves before its exit animation removes the field.
@@ -240,8 +252,11 @@ class _BinaryViewerState extends State<BinaryViewer> {
       }
     }
     if (mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('No differences found.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.viewerNoDifferencesFound),
+        ),
+      );
     }
   }
 
@@ -316,7 +331,7 @@ class _BinaryViewerState extends State<BinaryViewer> {
                       child: _snapshotPanel(
                         context,
                         image: widget.input,
-                        title: 'Input BIN',
+                        title: AppLocalizations.of(context)!.viewerInputBin,
                         isLeft: true,
                       ),
                     ),
@@ -325,7 +340,7 @@ class _BinaryViewerState extends State<BinaryViewer> {
                       child: _snapshotPanel(
                         context,
                         image: widget.readout,
-                        title: 'IC Readout',
+                        title: AppLocalizations.of(context)!.viewerIcReadout,
                         isLeft: false,
                       ),
                     ),
@@ -341,46 +356,88 @@ class _BinaryViewerState extends State<BinaryViewer> {
     );
   }
 
-  Widget _toolbar(BuildContext context) => Wrap(
-    alignment: WrapAlignment.spaceBetween,
-    crossAxisAlignment: WrapCrossAlignment.center,
-    spacing: 8,
-    runSpacing: 8,
-    children: [
-      SegmentedButton<int>(
-        segments: const [
-          ButtonSegment(value: 8, label: Text('8 bytes')),
-          ButtonSegment(value: 16, label: Text('16 bytes')),
-        ],
-        selected: {_columns},
-        onSelectionChanged: (value) => setState(() => _columns = value.first),
+  Widget _toolbar(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    Widget jump(bool left) => Tooltip(
+      message: left ? l10n.viewerInputBin : l10n.viewerIcReadout,
+      child: OutlinedButton.icon(
+        key: ValueKey(left ? 'input-jump' : 'readout-jump'),
+        onPressed: ((left ? widget.input : widget.readout)?.length ?? 0) > 0
+            ? () => _jump(isLeft: left)
+            : null,
+        icon: const Icon(Icons.my_location),
+        label: Text(l10n.viewerJump),
       ),
-      Wrap(
-        spacing: 4,
-        children: [
-          IconButton(
-            tooltip: 'Previous difference',
-            onPressed: widget.input != null && widget.readout != null
-                ? () => _difference(false)
-                : null,
-            icon: const Icon(Icons.keyboard_arrow_up),
+    );
+    return Row(
+      children: [
+        Expanded(
+          child: Row(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      OutlinedButton.icon(
+                        key: const ValueKey('input-open-file'),
+                        onPressed: widget.inputDropEnabled
+                            ? widget.onInputDropRequested
+                            : null,
+                        icon: const Icon(Icons.folder_open),
+                        label: Text(l10n.openBinButton),
+                      ),
+                      const SizedBox(width: 8),
+                      SegmentedButton<int>(
+                        segments: [
+                          ButtonSegment(
+                            value: 8,
+                            label: Text(l10n.viewerBytesPerRow(8)),
+                          ),
+                          ButtonSegment(
+                            value: 16,
+                            label: Text(l10n.viewerBytesPerRow(16)),
+                          ),
+                        ],
+                        selected: {_columns},
+                        onSelectionChanged: (value) =>
+                            setState(() => _columns = value.first),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              jump(true),
+            ],
           ),
-          IconButton(
-            tooltip: 'Next difference',
-            onPressed: widget.input != null && widget.readout != null
-                ? () => _difference(true)
-                : null,
-            icon: const Icon(Icons.keyboard_arrow_down),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              IconButton(
+                tooltip: l10n.viewerPreviousDifference,
+                onPressed: widget.input != null && widget.readout != null
+                    ? () => _difference(false)
+                    : null,
+                icon: const Icon(Icons.keyboard_arrow_up),
+              ),
+              IconButton(
+                tooltip: l10n.viewerNextDifference,
+                onPressed: widget.input != null && widget.readout != null
+                    ? () => _difference(true)
+                    : null,
+                icon: const Icon(Icons.keyboard_arrow_down),
+              ),
+              jump(false),
+            ],
           ),
-          OutlinedButton.icon(
-            onPressed: _jump,
-            icon: const Icon(Icons.my_location),
-            label: const Text('Jump'),
-          ),
-        ],
-      ),
-    ],
-  );
+        ),
+      ],
+    );
+  }
 
   Widget _snapshotPanel(
     BuildContext context, {
@@ -397,7 +454,7 @@ class _BinaryViewerState extends State<BinaryViewer> {
       children: [
         Padding(
           padding: const EdgeInsets.all(8),
-          child: _imageSummary(image, title),
+          child: _imageSummary(image, title, isLeft),
         ),
         const Divider(height: 1),
         Expanded(
@@ -411,17 +468,20 @@ class _BinaryViewerState extends State<BinaryViewer> {
   );
 
   Widget _byteDisplay(ViewerImage? image, bool isLeft) {
+    final l10n = AppLocalizations.of(context)!;
     if (image == null || image.length == 0) {
       final message = isLeft
-          ? 'Drop a file here to open'
-          : 'Read IC from programmer';
+          ? l10n.viewerDropFileToOpen
+          : l10n.viewerReadIcFromProgrammer;
       final canRequestInput =
           isLeft &&
           widget.inputDropEnabled &&
           widget.onInputDropRequested != null;
       return Semantics(
         button: canRequestInput,
-        label: isLeft ? 'Input BIN drop region' : 'IC Readout empty region',
+        label: isLeft
+            ? l10n.viewerInputDropRegion
+            : l10n.viewerReadoutEmptyRegion,
         child: InkWell(
           onTap: canRequestInput ? widget.onInputDropRequested : null,
           child: Center(child: Text(message)),
@@ -446,41 +506,55 @@ class _BinaryViewerState extends State<BinaryViewer> {
     );
   }
 
-  Widget _imageSummary(ViewerImage? image, String title) {
+  Widget _imageSummary(ViewerImage? image, String title, bool isLeft) {
+    final l10n = AppLocalizations.of(context)!;
     final input = widget.input;
     final readout = widget.readout;
     final hashMismatch =
-        input != null && readout != null && input.sha1 != readout.sha1;
+        input != null &&
+        readout != null &&
+        input.sha1 != null &&
+        readout.sha1 != null &&
+        input.sha1 != readout.sha1;
     final background = hashMismatch
         ? azukiDifferenceBackground(Theme.of(context).brightness)
         : null;
     return image == null
-        ? Text('$title · no snapshot', style: const TextStyle(fontSize: 12))
+        ? Text(
+            l10n.viewerNoSnapshot(title),
+            style: const TextStyle(fontSize: 12),
+          )
         : Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '$title · Read only',
+                l10n.viewerReadOnly(title),
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               Text(
-                '${image.name} · ${image.length} bytes',
+                l10n.viewerImageSize(image.name, image.length),
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 12),
               ),
               Text(
-                '${image.origin}${image.stale ? ' · previous successful readout' : ''}',
+                image.stale
+                    ? l10n.viewerPreviousSuccessfulReadout(
+                        _originLabel(l10n, image.origin),
+                      )
+                    : _originLabel(l10n, image.origin),
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 11),
               ),
               Container(
-                key: ValueKey('$title-checksum'),
+                key: ValueKey(
+                  isLeft ? 'Input BIN-checksum' : 'IC Readout-checksum',
+                ),
                 color: background,
                 padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Text(
-                    'SHA-1: ${image.sha1}',
+                    'SHA-1: ${image.sha1 ?? l10n.viewerChecksumCalculating}',
                     style: const TextStyle(
                       fontFamily: 'monospace',
                       fontSize: 10,
@@ -492,15 +566,30 @@ class _BinaryViewerState extends State<BinaryViewer> {
           );
   }
 
+  String _originLabel(AppLocalizations l10n, ViewerImageOrigin origin) =>
+      switch (origin) {
+        ViewerImageOrigin.file => l10n.viewerOriginInputBin,
+        ViewerImageOrigin.readout => l10n.viewerOriginIcReadoutSnapshot,
+        ViewerImageOrigin.postWriteVerification =>
+          l10n.viewerOriginPostWriteVerificationSnapshot,
+      };
+
   Widget _inspector(int? value) {
+    final l10n = AppLocalizations.of(context)!;
     final address = _selected;
     final ascii = value == null
         ? '—'
         : (value >= 0x20 && value <= 0x7e ? String.fromCharCode(value) : '.');
     return Semantics(
       label: value == null
-          ? 'No byte selected'
-          : 'Address ${address!.toRadixString(16)}, value ${value.toRadixString(16)}, decimal $value, binary ${value.toRadixString(2).padLeft(8, '0')}, ASCII $ascii',
+          ? l10n.viewerNoByteSelected
+          : l10n.viewerByteSelection(
+              address!.toRadixString(16),
+              value.toRadixString(16),
+              value,
+              value.toRadixString(2).padLeft(8, '0'),
+              ascii,
+            ),
       child: Card(
         margin: EdgeInsets.zero,
         child: Padding(
@@ -510,23 +599,23 @@ class _BinaryViewerState extends State<BinaryViewer> {
             runSpacing: 6,
             children: [
               _detail(
-                'Address',
+                l10n.viewerAddress,
                 address == null
                     ? '—'
                     : '0x${address.toRadixString(16).padLeft(8, '0').toUpperCase()}',
               ),
               _detail(
-                'HEX',
+                l10n.viewerHex,
                 value == null
                     ? '—'
                     : value.toRadixString(16).padLeft(2, '0').toUpperCase(),
               ),
-              _detail('Decimal', value?.toString() ?? '—'),
+              _detail(l10n.viewerDecimal, value?.toString() ?? '—'),
               _detail(
-                'Binary',
+                l10n.viewerBinary,
                 value == null ? '—' : value.toRadixString(2).padLeft(8, '0'),
               ),
-              _detail('ASCII', ascii),
+              _detail(l10n.viewerAscii, ascii),
             ],
           ),
         ),

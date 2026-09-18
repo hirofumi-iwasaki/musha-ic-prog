@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:mushagaeshi_ic_programmer/l10n/app_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mushagaeshi_ic_programmer/application/controllers/programmer_controller.dart';
@@ -46,7 +47,12 @@ void main() {
     });
 
     await tester.pumpWidget(
-      MaterialApp(home: ProgrammerScreen(controller: subject)),
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: const Locale('en'),
+        home: ProgrammerScreen(controller: subject),
+      ),
     );
 
     expect(find.text('Programmer'), findsOneWidget);
@@ -89,7 +95,12 @@ void main() {
       subject.message = 'Reading all bytes';
 
       await tester.pumpWidget(
-        MaterialApp(home: ProgrammerScreen(controller: subject)),
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+          home: ProgrammerScreen(controller: subject),
+        ),
       );
 
       expect(
@@ -165,7 +176,12 @@ void main() {
     subject.selectDevice(eligible);
 
     await tester.pumpWidget(
-      MaterialApp(home: ProgrammerScreen(controller: subject)),
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: const Locale('en'),
+        home: ProgrammerScreen(controller: subject),
+      ),
     );
     expect(
       find.text('Hardware evaluation · not yet validated on this IC'),
@@ -211,7 +227,12 @@ void main() {
         subject.dispose();
       });
       await tester.pumpWidget(
-        MaterialApp(home: ProgrammerScreen(controller: subject)),
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+          home: ProgrammerScreen(controller: subject),
+        ),
       );
       final viewer = tester.getRect(find.byType(BinaryViewer));
       final point = Offset(viewer.left + viewer.width * .25, viewer.center.dy);
@@ -256,7 +277,12 @@ void main() {
       subject.dispose();
     });
     await tester.pumpWidget(
-      MaterialApp(home: ProgrammerScreen(controller: subject)),
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: const Locale('en'),
+        home: ProgrammerScreen(controller: subject),
+      ),
     );
     final viewer = tester.getRect(find.byType(BinaryViewer));
     final point = Offset(viewer.left + viewer.width * .75, viewer.center.dy);
@@ -301,7 +327,12 @@ void main() {
       subject.dispose();
     });
     await tester.pumpWidget(
-      MaterialApp(home: ProgrammerScreen(controller: subject)),
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: const Locale('en'),
+        home: ProgrammerScreen(controller: subject),
+      ),
     );
     final viewer = tester.getRect(find.byType(BinaryViewer));
     final point = Offset(viewer.left + viewer.width * .25, viewer.center.dy);

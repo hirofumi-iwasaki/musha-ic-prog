@@ -130,3 +130,18 @@ Windows transport correction D30: [run 35074949228](https://github.com/hirofumi-
 passed all five corrected builds and both Ubuntu 24.04 checks at `543ce2e`.
 WinUSB/libusb physical acceptance remains open. The withdrawn Release is not
 republished; Windows evaluation artifacts include the one-time setup guide.
+
+## v0.3.0 localization implementation
+
+- [x] Create release/0.3.0 from merged main and inspect pinned Flutter OS locale sources.
+- [x] Implement primary-language resolution, persisted manual override, English/Japanese catalogs and native macOS menu updates.
+- [x] Preserve semantic errors and raw technical diagnostics; localize confirmations and cached snapshot metadata correctly.
+- [x] Static analysis, 73 regression tests, macOS ARM64 debug build and local interactive language-switch/restart checks.
+- [x] Retarget five-platform CI branch trigger and include localization inputs in source packages.
+- [ ] Run five-platform CI after committing/pushing the implementation.
+- [ ] Validate Windows/Linux UI locale settings and persistence on both architectures; complete macOS per-app/system-language permutations.
+- [ ] Publish a release only on a user request.
+
+Details and evidence: [LOCALIZATION_0.3.0.md](LOCALIZATION_0.3.0.md).
+
+Catalog keyboard selection (D33): vendor/full-device typeahead implemented, existing device text search retained and Enter submission connected. Static analysis and all 79 tests pass. See [keyboard selection record](KEYBOARD_SELECTION_0.3.0.md).

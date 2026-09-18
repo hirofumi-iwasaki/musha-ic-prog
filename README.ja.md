@@ -8,6 +8,10 @@
 
 バージョン0.2.0では、TL866CS用アプリケーションをmacOS ARM64、Windows x64／ARM64、Ubuntu x64／ARM64の5プラットフォームへ拡張しています。各移植版の検証を進めており、CIでのビルド確認と実機でのUSB動作確認は分けて管理しています。Dart／Flutter構成により、今後はXGecu T56などのプログラマー用バックエンドを各OSへ追加できます。ビューアーの表示方法は[Mushagaeshi Binary Editor](https://github.com/hirofumi-iwasaki/musha-bin-editor)を参考にしています。
 
+## v0.3.0のリリース状況
+
+[v0.3.0](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.3.0)では、日本語・英語の自動表示と設定を保存する言語選択、ベンダー・デバイス一覧のキーボード選択を追加しました。「BINを開く」は入力ペーン上部のバイト幅切り替えの隣へ移動し、左右それぞれにアドレスの「移動」ボタンを配置しました。未接続時の警告は下部ステータスに集約し、エラーを赤色で表示します。プログラマーの操作とUSB通信方式は変更していません。
+
 ## v0.2.1のリリース状況
 
 [v0.2.1](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.2.1)では、日本語README全文と言語切り替えリンクを追加し、Windowsの導入手順を拡充しました。ARM64の署名エラーの一時回避と通常再起動後の確認も記載しています。Windows配布物には実行ファイルと同じ場所に両言語のREADMEを同梱し、接続時のメッセージから主READMEを案内します。5プラットフォームすべての対応ソースにも日本語READMEを含めます。プログラマーの操作と、v0.2.0で修正したUSB通信方式は変更していません。
@@ -33,6 +37,14 @@ macOS版のGitHub Actionsビルド、静的解析、テスト、リリースフ�
 
 開発にはFlutter 3.47.4、Dart 3.13.3、Xcodeを使用しています。macOS 27.0（26A428）とTL866CSファームウェア03.2.86（0x256）で本体への接続を確認しました。macOS 15／26でのGUIと実機の受入確認は、CIのビルド確認とは別に扱っています。
 
+## UI言語対応
+
+v0.3.0では、アプリのUI言語を選択できます。**Language / 言語**には、保存される選択肢として**System / システム**、**English**、**日本語**を用意します。手動で選ぶとアプリの表示は直ちに更新され、次回起動後も選択を維持します。プログラマーの状態、選択したデータ、実行中の操作は変更しません。
+
+SystemではOSの優先言語リストの先頭だけを使います。先頭が日本語（地域付きの日本語を含む）なら日本語を選び、それ以外の先頭言語では英語を選びます。日本語が先頭以外にある場合は日本語を選びません。WindowsとLinuxでは、OSの表示言語またはセッション言語を変えたあと、Systemの表示へ確実に反映するためアプリを再起動してください。ネイティブのファイル選択画面はOSが所有するため、アプリが用意するラベルは翻訳できますが、アプリ内で言語を切り替えても画面の枠やボタンはOSの言語のままになることがあります。
+
+UIの変更はmacOSで手動確認しています。新たな実機対応の検証を示すものではありません。
+
 ## macOS版の起動
 
 [Releases](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases)から`musha-ic-prog-macos-arm64.zip`をダウンロードして展開し、**Mushagaeshi IC Programmer.app**を開きます。アプリケーションフォルダーへコピーして使用できます。
@@ -57,7 +69,7 @@ open 'dist/Mushagaeshi IC Programmer.app'
 
 ### ダウンロードと展開
 
-1. [v0.2.1](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.2.1)から取得します。Intel／AMD搭載のWindows PCには`musha-ic-prog-windows-x64.zip`、Windows ARM PCやApple Silicon上のParallelsで動かすWindowsには`musha-ic-prog-windows-arm64.zip`を使用してください。
+1. [v0.3.0](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.3.0)から取得します。Intel／AMD搭載のWindows PCには`musha-ic-prog-windows-x64.zip`、Windows ARM PCやApple Silicon上のParallelsで動かすWindowsには`musha-ic-prog-windows-arm64.zip`を使用してください。
 2. 実行前に配布ファイル全体を展開します。`mushagaeshi_ic_programmer.exe`、各DLL、`data/`、`native/`、`resources/`をまとめて保持してください。特に`native/libusb-1.0.dll`は`native/minipro.exe`と同じ場所に必要です。
 3. `mushagaeshi_ic_programmer.exe`を開きます。Flutter、MiniPro、libusbを別途インストールする必要はありません。プログラマーを接続しなくてもファイルを閲覧できますが、USB操作には以下のドライバー割り当てが必要です。
 
@@ -135,7 +147,7 @@ This version of Windows is refusing to trust the installed certificate.
 
 ## Ubuntuの導入手順
 
-Ubuntu環境のCPUに合った`musha-ic-prog-linux-x64.tar.gz`または`musha-ic-prog-linux-arm64.tar.gz`を[Releases](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.2.1)から取得します。全体を展開し、展開先の`mushagaeshi_ic_programmer`を実行してください。
+Ubuntu環境のCPUに合った`musha-ic-prog-linux-x64.tar.gz`または`musha-ic-prog-linux-arm64.tar.gz`を[Releases](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.3.0)から取得します。全体を展開し、展開先の`mushagaeshi_ic_programmer`を実行してください。
 
 ディストリビューションのGTK 3、EGL／OpenGL、LZMA実行時ライブラリー（`libgtk-3-0`、`libegl1`、`libgles2`、`libgl1-mesa-dri`、`liblzma5`）が必要です。USBアクセスが拒否される場合は、同梱の[USBアクセス設定手順](linux/udev/README.md)に従ってください。アプリをrootで実行しないでください。
 
@@ -156,9 +168,13 @@ Linuxでは実機動作成功のユーザー報告がありますが、ディス
 
 カタログへの掲載は、そのICの実機検証が済んでいることを意味しません。別名や上流のカスタム定義を保持しており、異なる出典の似た名前の項目も含まれます。
 
+## キーボードでの選択
+
+ベンダー一覧、またはデバイス欄の矢印で一覧を開き、頭文字を押すと最初の該当項目へ移動します。同じ文字を繰り返し押すと次の該当項目へ進み、末尾まで進むと先頭へ戻ります。800ミリ秒以内に続けて入力すると、複数文字の前方一致で移動します。上下キー・Home／Endで移動、Enterで確定、Escで取消ができます。移動だけでは選択は変更されません。デバイスの文字欄に直接入力する場合は、従来どおり部分一致検索になります。
+
 ## GitHub Actionsによるビルド
 
-**Desktop build and package**ワークフローは、`release/0.2.1`へのpush、プルリクエスト、Release公開、手動実行で動作します。Flutter 3.47.4のリビジョン`9584c6713b324636289d067944a46fd6b49df14b`に固定し、各CPUでネイティブに動作するランナーを使って5種類をビルドします。Ubuntu版は22.04上で作成し、24.04でも画面表示を伴わない起動確認を行います。
+**Desktop build and package**ワークフローは、`release/0.3.0`へのpush、プルリクエスト、Release公開、手動実行で動作します。Flutter 3.47.4のリビジョン`9584c6713b324636289d067944a46fd6b49df14b`に固定し、各CPUでネイティブに動作するランナーを使って5種類をビルドします。Ubuntu版は22.04上で作成し、24.04でも画面表示を伴わない起動確認を行います。
 
 | 対象 | 配布ファイル |
 | --- | --- |

@@ -1,0 +1,441 @@
+{
+  "@@locale": "ja",
+  "catalogLoadFailed": "オフラインのデバイスカタログを読み込めませんでした。",
+  "retry": "再試行",
+  "languageSaveFailed": "言語設定を保存できませんでした。今回の選択はアプリを終了するまで有効です。",
+  "languageLoadFailed": "保存された言語設定を読み込めませんでした。システムの言語を使用します。",
+  "technicalDetails": "技術情報",
+  "close": "閉じる",
+  "cancel": "キャンセル",
+  "@cancel": {
+    "description": "汎用キャンセル操作。"
+  },
+  "programmer": "プログラマー",
+  "vendor": "ベンダー",
+  "device": "デバイス",
+  "openBinButton": "BIN を開く",
+  "read": "読み取り",
+  "blankCheck": "ブランクチェック",
+  "program": "書き込み",
+  "verify": "検証",
+  "waitForOperationToFinish": "現在の操作が完了するまで閉じないでください。",
+  "programSimulatedIcTitle": "シミュレートした IC に書き込みますか？",
+  "programIcTitle": "IC に書き込みますか？",
+  "programSimulationConfirmation": "このシミュレーションでは、入力データのスナップショット {name}（{bytes} バイト）を書き込み、読み戻してすべてのバイトを検証します。\n\n対象デバイス: {target}\n容量: {capacity} バイト\nSHA-1: {sha1}\n\n実機は操作しません。",
+  "@programSimulationConfirmation": {
+    "description": "シミュレーションの書き込み前確認。",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "bytes": {
+        "type": "int"
+      },
+      "target": {
+        "type": "String"
+      },
+      "capacity": {
+        "type": "String"
+      },
+      "sha1": {
+        "type": "String"
+      }
+    }
+  },
+  "programConfirmation": "この操作では、入力データのスナップショット {name}（{bytes} バイト）を書き込み、読み戻してすべてのバイトを検証します。\n\n対象デバイス: {target}\n容量: {capacity} バイト\nSHA-1: {sha1}",
+  "@programConfirmation": {
+    "description": "物理書き込み前確認。",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "bytes": {
+        "type": "int"
+      },
+      "target": {
+        "type": "String"
+      },
+      "capacity": {
+        "type": "String"
+      },
+      "sha1": {
+        "type": "String"
+      }
+    }
+  },
+  "programSimulation": "シミュレーションに書き込む",
+  "droppedFileCouldNotBeOpened": "ドロップしたファイルを開けませんでした。",
+  "dropFileOnInputBin": "入力 BIN の領域にファイルをドロップしてください。",
+  "droppedItemNotReadableFile": "ドロップした項目は読み取り可能なファイルではありません。",
+  "binFileCouldNotBeOpened": "BIN ファイルを開けませんでした。",
+  "anotherInputFileLoading": "別の入力ファイルを読み込み中です。",
+  "waitForOperationBeforeOpeningFile": "現在の操作が完了してからファイルを開いてください。",
+  "binFileTooLarge": "64 MiB を超える BIN ファイルはまだサポートされていません。",
+  "selectedDevice": "選択したデバイス",
+  "confirmPhysicalOperation": "{operation}の確認（実機）",
+  "@confirmPhysicalOperation": {
+    "description": "物理操作の安全確認ダイアログのタイトル。",
+    "placeholders": {
+      "operation": {
+        "type": "String"
+      }
+    }
+  },
+  "targetAlias": "対象デバイス: {target}",
+  "@targetAlias": {
+    "description": "ターゲット別名の項目。",
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "capacityBytes": "容量: {capacity} バイト",
+  "@capacityBytes": {
+    "description": "容量の項目。",
+    "placeholders": {
+      "capacity": {
+        "type": "String"
+      }
+    }
+  },
+  "physicalOperationWarning": "続行する前に、IC の型番、向き、ソケット上の位置、必要なアダプターを確認してください。カタログへの掲載は、実機での動作を保証するものではありません。",
+  "confirmIcAndSetupChecked": "IC と接続・配置を確認しました。",
+  "startOperation": "{operation} を開始",
+  "@startOperation": {
+    "description": "指定した操作を開始するボタン。",
+    "placeholders": {
+      "operation": {
+        "type": "String"
+      }
+    }
+  },
+  "phaseStatus": "{phase}: {message}",
+  "@phaseStatus": {
+    "description": "操作フェーズと状態メッセージ。",
+    "placeholders": {
+      "phase": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "noOperationInProgress": "実行中の操作はありません。",
+  "operationInProgressWarning": "操作中です。プログラマー、IC、USB ケーブルに触れないでください。",
+  "operationInProgressSimulationWarning": "操作中です。プログラマー、IC、USB ケーブルに触れないでください。シミュレーションのみです。",
+  "refreshSimulation": "シミュレーションを更新",
+  "refreshTl866cs": "TL866CS を更新",
+  "simulationConnected": "シミュレーション接続済み · {model} · {firmware}",
+  "@simulationConnected": {
+    "description": "シミュレーションの接続概要。",
+    "placeholders": {
+      "model": {
+        "type": "String"
+      },
+      "firmware": {
+        "type": "String"
+      }
+    }
+  },
+  "mockProgrammer": "模擬プログラマー",
+  "firmwareUnknown": "ファームウェア不明",
+  "simulationConnectedOperationInProgress": "シミュレーション接続済み · 操作中",
+  "tl866csConnectedOperationInProgress": "TL866CS 接続済み · 操作中",
+  "checkingSimulationConnection": "シミュレーション接続を確認中…",
+  "checkingTl866csConnection": "TL866CS 接続を確認中…",
+  "simulationDisconnected": "シミュレーション切断",
+  "phaseIdle": "待機中",
+  "phaseAwaitingConfirmation": "確認待ち",
+  "phasePreparing": "準備中",
+  "phaseRunning": "実行中",
+  "phaseReading": "読み取り中",
+  "phaseBlankChecking": "ブランクチェック中",
+  "phaseProgramming": "書き込み中",
+  "phaseReadingBack": "読み戻し中",
+  "phaseComparing": "比較中",
+  "phaseCompleted": "完了",
+  "phaseFailed": "失敗",
+  "phaseCancelled": "キャンセル済み",
+  "phaseRecoveryRequired": "復旧が必要",
+  "futureProgrammer": "{programmer}（今後対応）",
+  "@futureProgrammer": {
+    "description": "今後対応予定のプログラマー。",
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "chooseVendor": "ベンダーを選択",
+  "targetWithCapacity": "ターゲット: {target} · {capacity} バイト",
+  "@targetWithCapacity": {
+    "description": "選択済みターゲットと容量。",
+    "placeholders": {
+      "target": {
+        "type": "String"
+      },
+      "capacity": {
+        "type": "String"
+      }
+    }
+  },
+  "unsupportedForAuthorizedHardwareEvaluation": "許可されたハードウェア評価では未対応",
+  "hardwareProfileValidated": "ハードウェアプロファイルを検証済み",
+  "hardwareEvaluationNotYetValidated": "ハードウェア評価 · この IC では未検証",
+  "chooseVendorFirst": "先にベンダーを選択してください。",
+  "searchAllDeviceRecords": "全 {count} 件のデバイスレコードを検索",
+  "@searchAllDeviceRecords": {
+    "description": "デバイス選択欄のヒント。",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "showAllDevicesForVendor": "選択したベンダーの全デバイスを表示",
+  "pinsUnspecified": "ピン数未指定",
+  "deviceKindAndPins": "{kind} · {pins}",
+  "@deviceKindAndPins": {
+    "description": "カタログ上のデバイス種別とピン数。",
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "pins": {
+        "type": "String"
+      }
+    }
+  },
+  "deviceTypeEepromMemory": "EEPROM / メモリー",
+  "deviceTypeMcuMpu": "MCU / MPU",
+  "deviceTypePldCpld": "PLD / CPLD",
+  "deviceTypeSram": "SRAM",
+  "deviceTypeLogic": "ロジック",
+  "deviceTypeNand": "NAND",
+  "deviceTypeEmmc": "eMMC",
+  "deviceTypeVgaHdmi": "VGA / HDMI",
+  "deviceTypeUnspecified": "未指定",
+  "firstMismatch": "最初の不一致: 0x{address} · {count} 件の差異",
+  "@firstMismatch": {
+    "description": "最初のバイナリ不一致と総数。",
+    "placeholders": {
+      "address": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "viewerJumpToAddress": "アドレスへ移動",
+  "viewerHexadecimalAddress": "16 進アドレス",
+  "viewerJump": "移動",
+  "viewerAddressOutsideSnapshot": "そのアドレスはこのスナップショットの範囲外です。",
+  "viewerNoDifferencesFound": "差異は見つかりませんでした。",
+  "viewerInputBin": "入力 BIN",
+  "viewerIcReadout": "IC 読み出し",
+  "viewerBytesPerRow": "{count} バイト",
+  "@viewerBytesPerRow": {
+    "description": "列数の選択。",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "viewerPreviousDifference": "前の差異",
+  "viewerNextDifference": "次の差異",
+  "viewerDropFileToOpen": "ここにファイルをドロップして開く",
+  "viewerReadIcFromProgrammer": "プログラマーから IC を読み取る",
+  "viewerInputDropRegion": "入力 BIN のドロップ領域",
+  "viewerReadoutEmptyRegion": "IC 読み出しの空の領域",
+  "viewerNoSnapshot": "{title} · スナップショットなし",
+  "@viewerNoSnapshot": {
+    "description": "空のスナップショット概要。",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "viewerReadOnly": "{title} · 読み取り専用",
+  "@viewerReadOnly": {
+    "description": "スナップショット概要の見出し。",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "viewerImageSize": "{name} · {bytes} バイト",
+  "@viewerImageSize": {
+    "description": "スナップショット名とサイズ。",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "bytes": {
+        "type": "int"
+      }
+    }
+  },
+  "viewerPreviousSuccessfulReadout": "{origin} · 直前に成功した読み出し",
+  "@viewerPreviousSuccessfulReadout": {
+    "description": "古いスナップショットの由来。",
+    "placeholders": {
+      "origin": {
+        "type": "String"
+      }
+    }
+  },
+  "viewerOriginInputBin": "入力 BIN",
+  "viewerOriginIcReadoutSnapshot": "IC 読み出しスナップショット",
+  "viewerOriginPostWriteVerificationSnapshot": "書き込み後検証スナップショット",
+  "viewerChecksumCalculating": "計算中…",
+  "viewerNoByteSelected": "バイトが選択されていません",
+  "viewerByteSelection": "アドレス {address}、値 {hex}、10進数 {decimal}、2進数 {binary}、ASCII {ascii}",
+  "@viewerByteSelection": {
+    "description": "選択したバイトのアクセシビリティラベル。",
+    "placeholders": {
+      "address": {
+        "type": "String"
+      },
+      "hex": {
+        "type": "String"
+      },
+      "decimal": {
+        "type": "int"
+      },
+      "binary": {
+        "type": "String"
+      },
+      "ascii": {
+        "type": "String"
+      }
+    }
+  },
+  "viewerAddress": "アドレス",
+  "viewerHex": "HEX",
+  "viewerDecimal": "10進数",
+  "viewerBinary": "2進数",
+  "viewerAscii": "ASCII",
+  "backendSimulation": "シミュレーション・バックエンド",
+  "backendNotConnected": "TL866CS は未接続です",
+  "backendConnected": "TL866CS 接続済み（{identifier}）",
+  "@backendConnected": {
+    "placeholders": {
+      "identifier": {}
+    }
+  },
+  "operationAlreadyRunning": "別の操作がすでに実行中です。",
+  "connectOneProgrammer": "プログラマーを1台だけ接続してください。",
+  "chooseProfile": "先にデバイスプロファイルを選択してください。",
+  "profileNoMemoryOperations": "選択したプロファイルはメモリ操作に対応していません。",
+  "openBin": "先に BIN ファイルを開いてください。",
+  "inputSizeMismatch": "入力 BIN のサイズは IC 容量と完全に一致している必要があります。",
+  "profileOutsideScope": "このデータベースプロファイルは、許可された TL866CS 評価範囲外です。",
+  "waitBeforeReconnect": "再接続する前に、現在の操作が終わるまで待ってください。",
+  "checkingSimulation": "シミュレーション・プログラマーを検索中…",
+  "checkingTl866": "TL866CS が1台接続されているか確認中…",
+  "programmerReady": "{model} の準備ができました。",
+  "@programmerReady": {
+    "placeholders": {
+      "model": {}
+    }
+  },
+  "identityCheckFailed": "プログラマーの識別確認に失敗しました。",
+  "simulationSelected": "シミュレーションデモを選択しました。接続してモックプログラマーを使用してください。",
+  "realProgrammerSelected": "TL866CS モードを選択しました。接続状態を更新してください。",
+  "profileSelected": "{profile} を選択しました。",
+  "@profileSelected": {
+    "placeholders": {
+      "profile": {}
+    }
+  },
+  "inputOpened": "{label} を開きました（{count} バイト）。",
+  "@inputOpened": {
+    "placeholders": {
+      "label": {},
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "inputTooLarge": "64 MiB を超える BIN ファイルはまだ対応していません。",
+  "confirmProgram": "入力データのスナップショットを書き込む前に、内容を確認してください。",
+  "programCancelled": "書き込みを開始する前に取り消しました。",
+  "operationCouldNotStart": "操作を開始できませんでした。",
+  "reconnectBeforeOperation": "次の操作の前に TL866CS 接続を更新してください。",
+  "reading": "コードメモリを読み取り中です。",
+  "blankChecking": "コードメモリのブランク状態を確認中です。",
+  "programming": "入力データのスナップショットを書き込み中です。",
+  "readingBack": "書き込み後にコードメモリを読み取り中です。",
+  "comparing": "入力データのスナップショットを比較中です。",
+  "readSucceeded": "{count} バイトを読み取りました。",
+  "@readSucceeded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "blankSucceeded": "IC のコードメモリはブランクです。",
+  "verificationSucceeded": "検証に成功しました。",
+  "verificationFailed": "検証に失敗しました。",
+  "programSucceeded": "{count} バイトを書き込み、バイト単位で検証しました。",
+  "@programSucceeded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "operationCancelled": "次のハードウェアコマンドの前に操作を停止しました。",
+  "identityChanged": "TL866CS の識別情報が変わりました。操作前に接続を更新してください。",
+  "identityChangedBeforeWrite": "書き込み前に TL866CS の識別情報が変わりました。書き込みは開始していません。",
+  "postWriteVerificationFailed": "書き込み後の検証に失敗しました。",
+  "stopAfterWrite": "書き込み開始後に停止要求がありました。続行前に内容を検証してください。",
+  "technicalFailure": "プログラマーの操作に失敗しました。技術情報を確認してください。",
+  "backendUnsupportedProfile": "このプロファイルは実機 TL866CS 評価用に承認されていません。",
+  "backendProfileValidationFailed": "選択したデバイスプロファイルを minipro で検証できませんでした。",
+  "backendDiscoveryFailure": "TL866CS の接続確認に失敗しました。技術的な詳細を確認してください。",
+  "backendWinUsbSetup": "README.ja.md の Windows 導入手順に従って TL866CS に WinUSB ドライバーを設定し、プログラマーを接続し直してください。",
+  "backendUsbAccessDenied": "USB へのアクセスが拒否されました。OS の USB アクセス権限とドライバー設定を確認し、接続し直してください。",
+  "backendBusy": "TL866CS は使用中です。他のプログラマー用ソフトを終了し、接続し直してください。",
+  "backendNotDetected": "TL866A/CS プログラマーが見つかりませんでした。",
+  "programmerDatabaseSelected": "{programmer} のデバイスデータベースを選択しました。",
+  "@programmerDatabaseSelected": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "chooseCatalogDevice": "選択したベンダーとプログラマーのデータベースからデバイスを選択してください。",
+  "unsafeBinProfile": "{device} は、安全に操作できる raw-BIN 用 TL866CS プロファイルとして扱えません。",
+  "@unsafeBinProfile": {
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "profileEmpiricallyValidated": "{device} には実機での検証記録があります。",
+  "@profileEmpiricallyValidated": {
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "profileAuthorizedNotValidated": "{device} は制限付きの実機評価が許可されていますが、実機での動作検証は完了していません。",
+  "@profileAuthorizedNotValidated": {
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  }
+}
