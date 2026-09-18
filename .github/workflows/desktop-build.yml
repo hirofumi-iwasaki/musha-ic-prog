@@ -2,7 +2,7 @@ name: Desktop build and package
 
 on:
   push:
-    branches: [release/0.2.1]
+    branches: [release/0.3.0]
   pull_request:
   release:
     types: [published]

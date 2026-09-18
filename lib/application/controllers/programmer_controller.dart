@@ -10,6 +10,7 @@ import '../../core/models/device_catalog.dart';
 import '../../core/models/device_profile.dart';
 import '../../core/models/operation.dart';
 import '../../core/models/programmer.dart';
+import '../../core/models/ui_message.dart';
 import '../../core/policies/operation_policy.dart';
 import '../../core/ports/programmer_backend.dart';
 
@@ -43,7 +44,14 @@ final class ProgrammerController extends ChangeNotifier {
   OperationPhase phase = OperationPhase.idle;
   double? progress;
   String? message;
+
+  /// Semantic counterpart of [message], rendered by the localized UI.
+  UiMessage? uiMessage;
+
+  /// Untranslated minipro/OS detail associated with the current message.
+  String? technicalDetail;
   String? blockedReason;
+  UiMessage? blockedUiMessage;
   OperationResult? lastResult;
   final List<String> logs = [];
 
@@ -74,6 +82,13 @@ final class ProgrammerController extends ChangeNotifier {
       : connection == null
       ? 'TL866CS not connected'
       : 'TL866CS connected (${connection!.identifier})';
+  UiMessage get backendStatusMessage => usingSimulation
+      ? const UiMessage(UiMessageId.backendSimulation)
+      : connection == null
+      ? const UiMessage(UiMessageId.backendNotConnected)
+      : UiMessage(UiMessageId.backendConnected, {
+          'identifier': connection!.identifier,
+        });
 
   /// Only TL866CS is selectable in the current release.
   List<ProgrammerOption> get availableProgrammers => const [
@@ -90,6 +105,7 @@ final class ProgrammerController extends ChangeNotifier {
   bool get canVerify => _eligibility(OperationKind.verify) == null;
 
   String? disabledReasonFor(OperationKind kind) => _eligibility(kind);
+  UiMessage? disabledUiMessageFor(OperationKind kind) => _eligibilityUi(kind);
 
   /// Replaces only browse data; it never grants operation support.
   void replaceCatalog(DeviceCatalog value) {
@@ -120,9 +136,14 @@ final class ProgrammerController extends ChangeNotifier {
     selectedVendor = null;
     selectedDevice = null;
     selectedProfile = null;
-    message = usingSimulation
-        ? '${programmer.label} database entries are available after switching to TL866CS mode.'
-        : '${programmer.label} database selected for constrained hardware evaluation.';
+    _setMessage(
+      usingSimulation
+          ? '${programmer.label} database entries are available after switching to TL866CS mode.'
+          : '${programmer.label} database selected for constrained hardware evaluation.',
+      UiMessage(UiMessageId.programmerDatabaseSelected, {
+        'programmer': programmer.label,
+      }),
+    );
     _safeNotify();
   }
 
@@ -137,8 +158,10 @@ final class ProgrammerController extends ChangeNotifier {
   void selectDevice(CatalogDevice? device) {
     if (isBusy || needsProgramConfirmation) return;
     if (device != null && !_catalogSelectionIsValid(device)) {
-      message =
-          'Choose a device from the selected vendor and programmer database.';
+      _setMessage(
+        'Choose a device from the selected vendor and programmer database.',
+        const UiMessage(UiMessageId.chooseCatalogDevice),
+      );
       _safeNotify();
       return;
     }
@@ -147,11 +170,22 @@ final class ProgrammerController extends ChangeNotifier {
         ? null
         : MiniproProfileMapper.fromTl866Catalog(device);
     if (device != null) {
-      message = selectedProfile == null
-          ? '${device.label} cannot be represented as a safe raw-BIN TL866CS profile.'
-          : selectedProfile!.verified
-          ? '${device.label} has an empirical validation record.'
-          : '${device.label} is authorized for constrained hardware evaluation; it is not empirically validated.';
+      _setMessage(
+        selectedProfile == null
+            ? '${device.label} cannot be represented as a safe raw-BIN TL866CS profile.'
+            : selectedProfile!.verified
+            ? '${device.label} has an empirical validation record.'
+            : '${device.label} is authorized for constrained hardware evaluation; it is not empirically validated.',
+        selectedProfile == null
+            ? UiMessage(UiMessageId.unsafeBinProfile, {'device': device.label})
+            : selectedProfile!.verified
+            ? UiMessage(UiMessageId.profileEmpiricallyValidated, {
+                'device': device.label,
+              })
+            : UiMessage(UiMessageId.profileAuthorizedNotValidated, {
+                'device': device.label,
+              }),
+      );
     }
     _safeNotify();
   }
@@ -171,8 +205,10 @@ final class ProgrammerController extends ChangeNotifier {
   Future<void> connectProgrammer() async {
     if (_isConnecting) return;
     if (isBusy || needsProgramConfirmation) {
-      blockedReason = 'Wait for the current operation before reconnecting.';
-      message = blockedReason;
+      _setBlocked(
+        'Wait for the current operation before reconnecting.',
+        const UiMessage(UiMessageId.waitBeforeReconnect),
+      );
       _safeNotify();
       return;
     }
@@ -182,9 +218,14 @@ final class ProgrammerController extends ChangeNotifier {
     _resetTransientState();
     connection = null;
     connectionStatus = ConnectionStatus.unknown;
-    message = usingSimulation
-        ? 'Looking for the simulation programmer…'
-        : 'Checking one TL866CS connection…';
+    _setMessage(
+      usingSimulation
+          ? 'Looking for the simulation programmer…'
+          : 'Checking one TL866CS connection…',
+      usingSimulation
+          ? const UiMessage(UiMessageId.checkingSimulation)
+          : const UiMessage(UiMessageId.checkingTl866),
+    );
     _safeNotify();
     try {
       final found = await backend.scan();
@@ -196,21 +237,35 @@ final class ProgrammerController extends ChangeNotifier {
             discoveryReason,
           _ => null,
         };
-        blockedReason =
-            diagnostic ?? 'Exactly one programmer must be connected.';
-        message = blockedReason;
+        _setBlocked(
+          diagnostic ?? 'Exactly one programmer must be connected.',
+          switch (backend) {
+                ProgrammerDiscoveryUiMessages(:final discoveryUiMessage) =>
+                  discoveryUiMessage,
+                _ => null,
+              } ??
+              const UiMessage(UiMessageId.connectOneProgrammer),
+          technicalDetail: diagnostic,
+        );
       } else {
         connection = found.single;
         connectionStatus = ConnectionStatus.ready;
-        message = usingSimulation
-            ? '${connection!.model} ready (simulation only).'
-            : '${connection!.model} ready; no IC operation has been performed.';
+        _setMessage(
+          usingSimulation
+              ? '${connection!.model} ready (simulation only).'
+              : '${connection!.model} ready; no IC operation has been performed.',
+          UiMessage(UiMessageId.programmerReady, {'model': connection!.model}),
+        );
         _log(message!);
       }
-    } catch (_) {
+    } catch (error) {
       if (!_disposed && epoch == _connectionEpoch && backend == _backend) {
         connectionStatus = ConnectionStatus.disconnected;
-        message = 'Programmer identity check failed.';
+        _setMessage(
+          'Programmer identity check failed.',
+          const UiMessage(UiMessageId.identityCheckFailed),
+          technicalDetail: '$error',
+        );
       }
     } finally {
       if (!_disposed && epoch == _connectionEpoch && backend == _backend) {
@@ -234,7 +289,10 @@ final class ProgrammerController extends ChangeNotifier {
     selectedDevice = null;
     selectedProfile = mockEpromProfile;
     connectionStatus = ConnectionStatus.disconnected;
-    message = 'Simulation demo selected. Connect to use the mock programmer.';
+    _setMessage(
+      'Simulation demo selected. Connect to use the mock programmer.',
+      const UiMessage(UiMessageId.simulationSelected),
+    );
     _safeNotify();
   }
 
@@ -244,7 +302,10 @@ final class ProgrammerController extends ChangeNotifier {
     _invalidateConnectionScan();
     selectedProfile = null;
     connectionStatus = ConnectionStatus.disconnected;
-    message = 'TL866CS mode selected. Refresh connection status.';
+    _setMessage(
+      'TL866CS mode selected. Refresh connection status.',
+      const UiMessage(UiMessageId.realProgrammerSelected),
+    );
     _safeNotify();
   }
 
@@ -255,10 +316,17 @@ final class ProgrammerController extends ChangeNotifier {
       selectedVendor = null;
       selectedDevice = null;
     }
-    blockedReason = null;
-    message = profile == null
-        ? 'Choose a device profile.'
-        : 'Selected ${profile.displayName}.';
+    _clearBlocked();
+    _setMessage(
+      profile == null
+          ? 'Choose a device profile.'
+          : 'Selected ${profile.displayName}.',
+      profile == null
+          ? const UiMessage(UiMessageId.chooseProfile)
+          : UiMessage(UiMessageId.profileSelected, {
+              'profile': profile.displayName,
+            }),
+    );
     _safeNotify();
   }
 
@@ -266,16 +334,24 @@ final class ProgrammerController extends ChangeNotifier {
   void openBinary(List<int> bytes, {required String label}) {
     if (isBusy || needsProgramConfirmation) return;
     if (bytes.length > maxInputBytes) {
-      blockedReason = 'BIN files larger than 64 MiB are not supported yet.';
-      message = blockedReason;
+      _setBlocked(
+        'BIN files larger than 64 MiB are not supported yet.',
+        const UiMessage(UiMessageId.inputTooLarge),
+      );
     } else {
       inputImage = BinaryImage(
         bytes: bytes,
         origin: BinaryImageOrigin.file,
         label: label,
       );
-      blockedReason = null;
-      message = 'Opened $label (${inputImage!.length} bytes).';
+      _clearBlocked();
+      _setMessage(
+        'Opened $label (${inputImage!.length} bytes).',
+        UiMessage(UiMessageId.inputOpened, {
+          'label': label,
+          'count': inputImage!.length,
+        }),
+      );
       _log(message!);
     }
     _safeNotify();
@@ -292,14 +368,16 @@ final class ProgrammerController extends ChangeNotifier {
   void requestProgram() {
     final reason = _eligibility(OperationKind.program);
     if (reason != null) {
-      blockedReason = reason;
-      message = reason;
+      _setBlocked(reason, _eligibilityUi(OperationKind.program));
       _safeNotify();
       return;
     }
     _pendingProgram = _newPlan(OperationKind.program);
     phase = OperationPhase.awaitingConfirmation;
-    message = 'Confirm program to write the immutable input snapshot.';
+    _setMessage(
+      'Confirm program to write the immutable input snapshot.',
+      const UiMessage(UiMessageId.confirmProgram),
+    );
     _safeNotify();
   }
 
@@ -314,7 +392,10 @@ final class ProgrammerController extends ChangeNotifier {
     if (!needsProgramConfirmation) return;
     _pendingProgram = null;
     phase = OperationPhase.cancelled;
-    message = 'Program cancelled before writing.';
+    _setMessage(
+      'Program cancelled before writing.',
+      const UiMessage(UiMessageId.programCancelled),
+    );
     _safeNotify();
   }
 
@@ -326,8 +407,7 @@ final class ProgrammerController extends ChangeNotifier {
   Future<void> _start(OperationKind kind) async {
     final reason = _eligibility(kind);
     if (reason != null) {
-      blockedReason = reason;
-      message = reason;
+      _setBlocked(reason, _eligibilityUi(kind));
       _safeNotify();
       return;
     }
@@ -346,7 +426,8 @@ final class ProgrammerController extends ChangeNotifier {
     _activeOperationId = plan.operationId;
     phase = OperationPhase.preparing;
     progress = 0;
-    blockedReason = null;
+    _clearBlocked();
+    technicalDetail = null;
     lastResult = null;
     connectionStatus = ConnectionStatus.busy;
     _safeNotify();
@@ -358,7 +439,11 @@ final class ProgrammerController extends ChangeNotifier {
       if (_activeOperationId != result.operationId || _disposed) return;
       phase = result.phase;
       progress = result.succeeded ? 1 : null;
-      message = result.message;
+      _setMessage(
+        result.message,
+        result.uiMessage,
+        technicalDetail: result.technicalDetail,
+      );
       lastResult = result;
       if (result.image != null) readoutImage = result.image;
       reconnectRequired =
@@ -370,11 +455,17 @@ final class ProgrammerController extends ChangeNotifier {
       if (!_disposed && _activeOperationId == plan.operationId) {
         phase = OperationPhase.failed;
         progress = null;
-        message = 'Operation could not start: $error';
+        _setMessage(
+          'Operation could not start: $error',
+          const UiMessage(UiMessageId.operationCouldNotStart),
+          technicalDetail: '$error',
+        );
         lastResult = OperationResult(
           operationId: plan.operationId,
           phase: OperationPhase.failed,
           message: message!,
+          uiMessage: uiMessage,
+          technicalDetail: '$error',
         );
         _log(message!);
         reconnectRequired = !usingSimulation;
@@ -389,9 +480,15 @@ final class ProgrammerController extends ChangeNotifier {
           if (reconnectRequired) {
             connection = null;
             connectionStatus = ConnectionStatus.disconnected;
-            message =
-                '${message ?? 'Physical operation failed.'} Refresh TL866CS connection before another operation.';
-            blockedReason = message;
+            final previousMessage = message ?? 'Physical operation failed.';
+            final previousUiMessage = uiMessage;
+            final previousTechnicalDetail = technicalDetail;
+            _setBlocked(
+              '$previousMessage Refresh TL866CS connection before another operation.',
+              const UiMessage(UiMessageId.reconnectBeforeOperation),
+              technicalDetail: previousTechnicalDetail,
+            );
+            uiMessage = previousUiMessage ?? uiMessage;
           } else {
             connectionStatus = ConnectionStatus.ready;
           }
@@ -405,7 +502,7 @@ final class ProgrammerController extends ChangeNotifier {
     if (event.operationId != _activeOperationId) return;
     phase = event.phase;
     progress = event.progress;
-    message = event.message;
+    if (event.message != null) _setMessage(event.message!, event.uiMessage);
     _safeNotify();
   }
 
@@ -421,6 +518,45 @@ final class ProgrammerController extends ChangeNotifier {
       input: inputImage,
       isBusy: isBusy || needsProgramConfirmation,
     );
+  }
+
+  UiMessage? _eligibilityUi(OperationKind kind) {
+    final profile = selectedProfile;
+    if (!usingSimulation && profile != null && !profile.isTl866Executable) {
+      return const UiMessage(UiMessageId.profileOutsideScope);
+    }
+    return OperationPolicy.validateUiMessage(
+      kind: kind,
+      connection: connection,
+      profile: profile,
+      input: inputImage,
+      isBusy: isBusy || needsProgramConfirmation,
+    );
+  }
+
+  void _setMessage(
+    String value,
+    UiMessage? semantic, {
+    String? technicalDetail,
+  }) {
+    message = value;
+    uiMessage = semantic;
+    this.technicalDetail = technicalDetail;
+  }
+
+  void _setBlocked(
+    String? value,
+    UiMessage? semantic, {
+    String? technicalDetail,
+  }) {
+    blockedReason = value;
+    blockedUiMessage = semantic;
+    _setMessage(value ?? '', semantic, technicalDetail: technicalDetail);
+  }
+
+  void _clearBlocked() {
+    blockedReason = null;
+    blockedUiMessage = null;
   }
 
   bool get _operationIsBusy =>
@@ -448,7 +584,8 @@ final class ProgrammerController extends ChangeNotifier {
   void _resetTransientState() {
     phase = OperationPhase.idle;
     progress = null;
-    blockedReason = null;
+    _clearBlocked();
+    technicalDetail = null;
     lastResult = null;
   }
 

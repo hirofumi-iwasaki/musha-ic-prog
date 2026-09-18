@@ -93,6 +93,7 @@ class MainFlutterWindow: NSWindow, NSWindowDelegate {
   }
 
   private var dropChannel: FlutterMethodChannel?
+  private var languageChannel: FlutterMethodChannel?
 
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
@@ -123,6 +124,19 @@ class MainFlutterWindow: NSWindow, NSWindowDelegate {
         return
       }
       host?.releaseScope(token)
+      result(nil)
+    }
+    languageChannel = FlutterMethodChannel(
+      name: "mushagaeshi/language",
+      binaryMessenger: flutterViewController.engine.binaryMessenger
+    )
+    languageChannel?.setMethodCallHandler { call, result in
+      guard call.method == "setLanguage", let language = call.arguments as? String,
+            language == "en" || language == "ja" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      (NSApp.delegate as? AppDelegate)?.setMenuLanguage(language)
       result(nil)
     }
     super.awakeFromNib()

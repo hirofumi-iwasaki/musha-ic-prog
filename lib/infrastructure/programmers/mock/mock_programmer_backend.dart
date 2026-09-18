@@ -7,6 +7,7 @@ import '../../../core/models/binary_image.dart';
 import '../../../core/models/device_profile.dart';
 import '../../../core/models/operation.dart';
 import '../../../core/models/programmer.dart';
+import '../../../core/models/ui_message.dart';
 import '../../../core/ports/programmer_backend.dart';
 
 /// A deterministic in-memory programmer for the prototype and automated tests.
@@ -64,11 +65,17 @@ final class MockProgrammerBackend implements ProgrammerBackend {
         OperationPhase.preparing,
         0,
         'Preparing mock operation',
+        const UiMessage(UiMessageId.reading),
       );
       if (handle.cancelled) return handle.finishCancelled();
       switch (plan.kind) {
         case OperationKind.read:
-          await handle.emit(OperationPhase.reading, .5, 'Reading all bytes');
+          await handle.emit(
+            OperationPhase.reading,
+            .5,
+            'Reading all bytes',
+            const UiMessage(UiMessageId.reading),
+          );
           if (handle.cancelled) return handle.finishCancelled();
           final image = BinaryImage(
             bytes: _memory!,
@@ -77,6 +84,9 @@ final class MockProgrammerBackend implements ProgrammerBackend {
           );
           return handle.finishSuccess(
             'Read ${image.length} bytes.',
+            uiMessage: UiMessage(UiMessageId.readSucceeded, {
+              'count': image.length,
+            }),
             image: image,
           );
         case OperationKind.blankCheck:
@@ -84,9 +94,15 @@ final class MockProgrammerBackend implements ProgrammerBackend {
             OperationPhase.blankChecking,
             .5,
             'Checking blank state',
+            const UiMessage(UiMessageId.blankChecking),
           );
           final mismatch = _firstNonBlank(_memory!, plan.profile.blankValue);
-          if (mismatch == null) return handle.finishSuccess('IC is blank.');
+          if (mismatch == null) {
+            return handle.finishSuccess(
+              'IC is blank.',
+              uiMessage: const UiMessage(UiMessageId.blankSucceeded),
+            );
+          }
           return handle.finishFailure(
             'IC is not blank at address 0x${mismatch.address.toRadixString(16)}.',
             mismatch: mismatch,
@@ -97,6 +113,7 @@ final class MockProgrammerBackend implements ProgrammerBackend {
             OperationPhase.blankChecking,
             .2,
             'Checking blank state',
+            const UiMessage(UiMessageId.blankChecking),
           );
           final nonBlank = _firstNonBlank(_memory!, plan.profile.blankValue);
           if (nonBlank != null) {
@@ -109,6 +126,7 @@ final class MockProgrammerBackend implements ProgrammerBackend {
             OperationPhase.programming,
             .55,
             'Programming input snapshot',
+            const UiMessage(UiMessageId.programming),
           );
           if (handle.cancelled) return handle.finishCancelled();
           _memory = plan.input!.bytes;
@@ -116,25 +134,30 @@ final class MockProgrammerBackend implements ProgrammerBackend {
             OperationPhase.readingBack,
             .75,
             'Reading back programmed data',
+            const UiMessage(UiMessageId.readingBack),
           );
           await handle.emit(
             OperationPhase.comparing,
             .9,
             'Comparing all bytes',
+            const UiMessage(UiMessageId.comparing),
           );
           return handle.finishSuccess(
             'Programmed and verified all $size bytes.',
+            uiMessage: UiMessage(UiMessageId.programSucceeded, {'count': size}),
           );
         case OperationKind.verify:
           await handle.emit(
             OperationPhase.readingBack,
             .5,
             'Reading IC for verification',
+            const UiMessage(UiMessageId.readingBack),
           );
           await handle.emit(
             OperationPhase.comparing,
             .8,
             'Comparing all bytes',
+            const UiMessage(UiMessageId.comparing),
           );
           final mismatch = _firstMismatch(plan.input!.bytes, _memory!);
           if (mismatch != null) {
@@ -146,6 +169,7 @@ final class MockProgrammerBackend implements ProgrammerBackend {
           }
           return handle.finishSuccess(
             'Verification passed for all $size bytes.',
+            uiMessage: const UiMessage(UiMessageId.verificationSucceeded),
           );
       }
     } catch (error) {
@@ -202,6 +226,7 @@ final class _MockOperationHandle implements OperationHandle {
     OperationPhase phase,
     double progress,
     String message,
+    UiMessage uiMessage,
   ) async {
     _events.add(
       OperationEvent(
@@ -209,16 +234,22 @@ final class _MockOperationHandle implements OperationHandle {
         phase: phase,
         progress: progress,
         message: message,
+        uiMessage: uiMessage,
       ),
     );
     await Future<void>.delayed(_stepDelay);
   }
 
-  void finishSuccess(String message, {BinaryImage? image}) => _finish(
+  void finishSuccess(
+    String message, {
+    UiMessage? uiMessage,
+    BinaryImage? image,
+  }) => _finish(
     OperationResult(
       operationId: _operationId,
       phase: OperationPhase.succeeded,
       message: message,
+      uiMessage: uiMessage,
       image: image,
     ),
   );
@@ -232,6 +263,8 @@ final class _MockOperationHandle implements OperationHandle {
       operationId: _operationId,
       phase: OperationPhase.failed,
       message: message,
+      uiMessage: const UiMessage(UiMessageId.technicalFailure),
+      technicalDetail: message,
       mismatch: mismatch,
       mismatchCount: mismatchCount,
     ),
@@ -242,6 +275,7 @@ final class _MockOperationHandle implements OperationHandle {
       operationId: _operationId,
       phase: OperationPhase.cancelled,
       message: 'Operation cancelled.',
+      uiMessage: const UiMessage(UiMessageId.operationCancelled),
     ),
   );
 

@@ -8,6 +8,10 @@ Repository: [hirofumi-iwasaki/musha-ic-prog](https://github.com/hirofumi-iwasaki
 
 Version 0.2.0 extends the TL866CS application to five native targets: macOS ARM64, Windows x64/ARM64 and Ubuntu x64/ARM64. The ports are being validated; CI compilation and physical USB acceptance are tracked separately. The Dart / Flutter architecture allows additional programmer backends, such as the XGecu T56, across all supported operating systems. The viewer follows the presentation approach of [Mushagaeshi Binary Editor](https://github.com/hirofumi-iwasaki/musha-bin-editor).
 
+## v0.3.0 release status
+
+[v0.3.0](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.3.0) adds automatic Japanese/English UI selection, a persistent manual language selector, and keyboard navigation in vendor and device menus. Open BIN is now beside the byte-width controls above the input pane; each pane has its own address-jump button. Disconnected warnings are consolidated in the bottom status bar, with errors highlighted in red. Programmer operations and USB transport remain unchanged.
+
 ## v0.2.1 release status
 
 [v0.2.1](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.2.1) adds a complete Japanese README with language navigation and expands Windows installation instructions, including the ARM64 signature workaround and normal-restart confirmation. Windows packages include both READMEs beside the executable, and connection messages point to the main README. Matching source bundles on all five targets include the Japanese README. Programmer operations and the corrected v0.2.0 USB transport are unchanged.
@@ -33,6 +37,14 @@ A user reported successfully reading a 27C512 using a connected TL866CS. This is
 
 Development uses Flutter 3.47.4, Dart 3.13.3 and Xcode. Hardware connection was checked on macOS 27.0 (26A428), with TL866CS firmware 03.2.86 (0x256). macOS 15 / 26 GUI and hardware acceptance remain separate from CI compilation.
 
+## UI language support
+
+Version 0.3.0 adds an application UI language control. **Language / 言語** offers the persistent choices **System / システム**, **English**, and **日本語**; a manual choice updates the application interface immediately and is retained for the next launch. It does not change programmer state, selected data, or an operation in progress.
+
+System mode uses only the first OS-preferred language: Japanese is selected when that language is Japanese (including a Japanese regional variant); every other primary language uses English. A Japanese language listed after another preferred language does not select Japanese. On Windows and Linux, restart the application after changing the OS display or session language to ensure the new System-mode language is picked up. The native file picker remains OS-owned: app-supplied labels can be localized, but its chrome may continue using the OS language after an in-app override.
+
+UI changes were manually checked on macOS. These changes do not establish new hardware validation.
+
 ## Run the macOS app
 
 Download `musha-ic-prog-macos-arm64.zip` from [Releases](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases), extract it and open **Mushagaeshi IC Programmer.app**. You can copy the app to your Applications folder.
@@ -55,7 +67,7 @@ Select **Open BIN**, or drop one file onto the left **Input BIN** pane. Any file
 
 ### Download and extract
 
-1. Download [v0.2.1](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.2.1):
+1. Download [v0.3.0](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.3.0):
    - Intel/AMD Windows PCs: `musha-ic-prog-windows-x64.zip`.
    - Windows ARM PCs and Windows in Parallels on Apple Silicon: `musha-ic-prog-windows-arm64.zip`.
 2. Extract the entire archive before running the app. Keep `mushagaeshi_ic_programmer.exe`, its DLLs, `data/`, `native/` and `resources/` together. In particular, keep `native/libusb-1.0.dll` beside `native/minipro.exe`.
@@ -135,7 +147,7 @@ For a persistent failure, report the Zadig version and error log, Windows versio
 
 ## Ubuntu installation
 
-Download `musha-ic-prog-linux-x64.tar.gz` or `musha-ic-prog-linux-arm64.tar.gz` from [Releases](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.2.1), matching the processor of your Ubuntu system. Extract the complete directory and run `mushagaeshi_ic_programmer` from the extracted bundle.
+Download `musha-ic-prog-linux-x64.tar.gz` or `musha-ic-prog-linux-arm64.tar.gz` from [Releases](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.3.0), matching the processor of your Ubuntu system. Extract the complete directory and run `mushagaeshi_ic_programmer` from the extracted bundle.
 
 Install the distribution's GTK 3, EGL/OpenGL and LZMA runtime libraries (`libgtk-3-0`, `libegl1`, `libgles2`, `libgl1-mesa-dri`, `liblzma5`). If USB access is denied, follow the included [USB access instructions](linux/udev/README.md). Do not run the application as root.
 
@@ -156,9 +168,13 @@ A user reported successful Linux hardware operation; the distribution version, a
 
 Catalog presence does not mean a device has passed hardware validation. Aliases and upstream custom definitions are retained, including entries with similar names from different sources.
 
+## Keyboard selection
+
+Open the vendor selector or the device dropdown arrow, then type an initial to jump to the first matching entry. Repeated presses of the same initial cycle through matching entries and wrap to the first. Typing several characters within 800 ms searches by prefix. Arrow keys and Home/End move the highlight; Enter confirms and Escape cancels. Navigation alone does not change the selected vendor or device. Typing directly in the device text field retains substring search.
+
 ## GitHub Actions builds
 
-The **Desktop build and package** workflow runs on pushes to `release/0.2.1`, pull requests, published Releases and manual dispatch. It builds all five targets using native runners and Flutter 3.47.4 pinned to revision `9584c6713b324636289d067944a46fd6b49df14b`. Ubuntu packages are built on 22.04 and also undergo headless launch checks on 24.04.
+The **Desktop build and package** workflow runs on pushes to `release/0.3.0`, pull requests, published Releases and manual dispatch. It builds all five targets using native runners and Flutter 3.47.4 pinned to revision `9584c6713b324636289d067944a46fd6b49df14b`. Ubuntu packages are built on 22.04 and also undergo headless launch checks on 24.04.
 
 | Target | Archive |
 | --- | --- |

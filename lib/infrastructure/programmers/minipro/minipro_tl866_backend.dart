@@ -11,6 +11,7 @@ import '../../../core/models/binary_image.dart';
 import '../../../core/models/device_profile.dart';
 import '../../../core/models/operation.dart';
 import '../../../core/models/programmer.dart';
+import '../../../core/models/ui_message.dart';
 import '../../../core/ports/programmer_backend.dart';
 import 'native_payload_locator.dart';
 import 'process_runner.dart';
@@ -21,7 +22,10 @@ export 'native_payload_locator.dart'
 /// Real TL866CS adapter. Identity scans enumerate USB only; ZIF actions need
 /// either empirical validation or an explicitly authorized evaluation profile.
 final class MiniproTl866Backend
-    implements ProgrammerBackend, ProgrammerDiscoveryDiagnostics {
+    implements
+        ProgrammerBackend,
+        ProgrammerDiscoveryDiagnostics,
+        ProgrammerDiscoveryUiMessages {
   MiniproTl866Backend({
     MiniproBundlePaths? paths,
     ProcessRunner? runner,
@@ -36,9 +40,16 @@ final class MiniproTl866Backend
   int _generation = 0;
   bool _operationActive = false;
   String? _discoveryReason;
+  UiMessage? _discoveryUiMessage;
 
   @override
   String? get discoveryReason => _discoveryReason;
+  @override
+  UiMessage? get discoveryUiMessage =>
+      _discoveryUiMessage ??
+      (_discoveryReason == null
+          ? null
+          : const UiMessage(UiMessageId.backendDiscoveryFailure));
 
   @override
   String get backendId => 'minipro-tl866cs';
@@ -46,6 +57,7 @@ final class MiniproTl866Backend
   @override
   Future<List<ProgrammerConnection>> scan() async {
     _discoveryReason = null;
+    _discoveryUiMessage = null;
     if (!_paths.isPresent) {
       _discoveryReason =
           'TL866CS native payload is incomplete: ${_paths.missingFiles.join(', ')}.';
@@ -163,6 +175,7 @@ final class MiniproTl866Backend
     if (state.contains('permission') || state.contains('access')) {
       return _libusbAccessReason();
     }
+    _discoveryUiMessage = const UiMessage(UiMessageId.backendNotDetected);
     return 'No TL866A/CS programmer was detected.';
   }
 
@@ -186,8 +199,10 @@ final class MiniproTl866Backend
     return _winusbSetupReason('The WinUSB interface is not ready.');
   }
 
-  String _winusbSetupReason(String detail) =>
-      '$detail Follow README.md (Windows installation), then reconnect the programmer.';
+  String _winusbSetupReason(String detail) {
+    _discoveryUiMessage = const UiMessage(UiMessageId.backendWinUsbSetup);
+    return '$detail Follow README.md (Windows installation), then reconnect the programmer.';
+  }
 
   String _probeFailureReason(ProcessTranscript probe) {
     final text = '${probe.stderr}\n${probe.stdout}'.toLowerCase();
@@ -195,7 +210,7 @@ final class MiniproTl866Backend
       return _libusbAccessReason();
     }
     if (text.contains('busy') || text.contains('in use')) {
-      return 'TL866CS is busy. Close other programmer software, then reconnect it.';
+      return _busyReason();
     }
     return 'TL866CS discovery helper failed: ${_diagnosticText(probe)}';
   }
@@ -206,7 +221,7 @@ final class MiniproTl866Backend
       return _libusbAccessReason();
     }
     if (text.contains('libusb_error_busy') || text.contains('busy')) {
-      return 'TL866CS is busy. Close other programmer software, then reconnect it.';
+      return _busyReason();
     }
     if (_operatingSystem == 'windows' &&
         (text.contains('libusb_error_no_device') ||
@@ -236,12 +251,20 @@ final class MiniproTl866Backend
       text.contains('permission') ||
       text.contains('access denied');
 
-  String _libusbAccessReason() => switch (_operatingSystem) {
-    'windows' => 'TL866CS was detected, but libusb access was denied. Check the WinUSB binding in README.md (Windows installation), then reconnect it.',
-    'linux' => 'TL866CS was detected, but libusb access was denied. Install or reload the TL866 udev rule for the current user, then reconnect it.',
-    'macos' => 'TL866CS was detected, but macOS denied USB access. Check the app USB permission and reconnect it.',
-    _ => 'TL866CS was detected, but libusb access was denied. Reconnect it and check USB permissions.',
-  };
+  String _busyReason() {
+    _discoveryUiMessage = const UiMessage(UiMessageId.backendBusy);
+    return 'TL866CS is busy. Close other programmer software, then reconnect it.';
+  }
+
+  String _libusbAccessReason() {
+    _discoveryUiMessage = const UiMessage(UiMessageId.backendUsbAccessDenied);
+    return switch (_operatingSystem) {
+      'windows' => 'TL866CS was detected, but libusb access was denied. Check the WinUSB binding in README.md (Windows installation), then reconnect it.',
+      'linux' => 'TL866CS was detected, but libusb access was denied. Install or reload the TL866 udev rule for the current user, then reconnect it.',
+      'macos' => 'TL866CS was detected, but macOS denied USB access. Check the app USB permission and reconnect it.',
+      _ => 'TL866CS was detected, but libusb access was denied. Reconnect it and check USB permissions.',
+    };
+  }
 
   @override
   Future<BackendCapabilities> capabilities(
@@ -249,15 +272,24 @@ final class MiniproTl866Backend
     DeviceProfile profile,
   ) async {
     if (connection.backendId != backendId || connection.model != 'TL866CS') {
-      return const BackendCapabilities(reason: 'A single TL866CS is required.');
+      return const BackendCapabilities(
+        reason: 'A single TL866CS is required.',
+        uiReason: UiMessage(UiMessageId.connectOneProgrammer),
+      );
     }
     if (!profile.isTl866Executable) {
       return const BackendCapabilities(
         reason: 'This profile is not approved for real TL866CS evaluation.',
+        uiReason: UiMessage(UiMessageId.backendUnsupportedProfile),
       );
     }
     final diagnostic = await _validateProfile(profile);
-    if (diagnostic != null) return BackendCapabilities(reason: diagnostic);
+    if (diagnostic != null) {
+      return BackendCapabilities(
+        reason: diagnostic,
+        uiReason: const UiMessage(UiMessageId.backendProfileValidationFailed),
+      );
+    }
     return const BackendCapabilities(
       canRead: true,
       canBlankCheck: true,
@@ -369,6 +401,7 @@ final class _MiniproOperationHandle implements OperationHandle {
       if (!await _backend._sameConnection(_plan.connection)) {
         return _finishFailure(
           'TL866CS identity changed; refresh before operating.',
+          uiMessage: const UiMessage(UiMessageId.identityChanged),
         );
       }
       final capabilities = await _backend.capabilities(
@@ -376,32 +409,57 @@ final class _MiniproOperationHandle implements OperationHandle {
         _plan.profile,
       );
       if (!_hasCapability(capabilities)) {
-        return _finishFailure(capabilities.reason!);
+        return _finishFailure(
+          capabilities.reason!,
+          technicalDetail: capabilities.reason,
+          uiMessage:
+              capabilities.uiReason ??
+              const UiMessage(UiMessageId.technicalFailure),
+        );
       }
       temp = await Directory.systemTemp.createTemp('mushagaeshi-minipro-');
       switch (_plan.kind) {
         case OperationKind.read:
-          _emit(OperationPhase.reading, 'Reading code memory.');
+          _emit(
+            OperationPhase.reading,
+            'Reading code memory.',
+            const UiMessage(UiMessageId.reading),
+          );
           final image = await _readImage(
             temp,
             'read.bin',
             BinaryImageOrigin.readout,
           );
-          _finishSuccess('Read ${image.length} bytes.', image: image);
+          _finishSuccess(
+            'Read ${image.length} bytes.',
+            uiMessage: UiMessage(UiMessageId.readSucceeded, {
+              'count': image.length,
+            }),
+            image: image,
+          );
         case OperationKind.blankCheck:
           _emit(
             OperationPhase.blankChecking,
             'Checking code memory blank state.',
+            const UiMessage(UiMessageId.blankChecking),
           );
           final result = await _command(const ['-b']);
           result.exitCode == 0
-              ? _finishSuccess('IC code memory is blank.')
-              : _finishFailure(_diagnostic(result));
+              ? _finishSuccess(
+                  'IC code memory is blank.',
+                  uiMessage: const UiMessage(UiMessageId.blankSucceeded),
+                )
+              : _finishFailure(
+                  _diagnostic(result),
+                  uiMessage: const UiMessage(UiMessageId.technicalFailure),
+                  technicalDetail: _diagnostic(result),
+                );
         case OperationKind.verify:
           final expected = _plan.input!.bytes;
           _emit(
             OperationPhase.reading,
             'Reading code memory for verification.',
+            const UiMessage(UiMessageId.reading),
           );
           final image = await _readImage(
             temp,
@@ -411,13 +469,19 @@ final class _MiniproOperationHandle implements OperationHandle {
           _emit(
             OperationPhase.comparing,
             'Comparing immutable input snapshot.',
+            const UiMessage(UiMessageId.comparing),
           );
           final mismatch = _firstMismatch(expected, image.bytes);
           final mismatchCount = _mismatchCount(expected, image.bytes);
           mismatch == null
-              ? _finishSuccess('Verification passed.', image: image)
+              ? _finishSuccess(
+                  'Verification passed.',
+                  uiMessage: const UiMessage(UiMessageId.verificationSucceeded),
+                  image: image,
+                )
               : _finishFailure(
                   'Verification failed.',
+                  uiMessage: const UiMessage(UiMessageId.verificationFailed),
                   image: image,
                   mismatch: mismatch,
                   mismatchCount: mismatchCount,
@@ -427,23 +491,32 @@ final class _MiniproOperationHandle implements OperationHandle {
           _emit(
             OperationPhase.blankChecking,
             'Checking code memory blank state.',
+            const UiMessage(UiMessageId.blankChecking),
           );
           final blank = await _command(const ['-b']);
           if (blank.exitCode != 0) return _finishFailure(_diagnostic(blank));
           if (!await _backend._sameConnection(_plan.connection)) {
             return _finishRecovery(
               'TL866CS identity changed before writing; no write was started.',
+              uiMessage: const UiMessage(
+                UiMessageId.identityChangedBeforeWrite,
+              ),
             );
           }
           _emit(
             OperationPhase.programming,
             'Programming immutable input snapshot.',
+            const UiMessage(UiMessageId.programming),
           );
           if (_cancelRequested) throw const _CancellationRequested();
           _writeStarted = true;
           final write = await _command(['-e', '-w', input.path]);
           if (write.exitCode != 0) return _finishRecovery(_diagnostic(write));
-          _emit(OperationPhase.readingBack, 'Reading code memory after write.');
+          _emit(
+            OperationPhase.readingBack,
+            'Reading code memory after write.',
+            const UiMessage(UiMessageId.readingBack),
+          );
           final image = await _readImage(
             temp,
             'readback.bin',
@@ -453,6 +526,9 @@ final class _MiniproOperationHandle implements OperationHandle {
           if (mismatch != null) {
             return _finishRecovery(
               'Post-write verification failed.',
+              uiMessage: const UiMessage(
+                UiMessageId.postWriteVerificationFailed,
+              ),
               image: image,
               mismatch: mismatch,
               mismatchCount: _mismatchCount(_plan.input!.bytes, image.bytes),
@@ -460,6 +536,9 @@ final class _MiniproOperationHandle implements OperationHandle {
           }
           _finishSuccess(
             'Programmed and byte-verified ${image.length} bytes.',
+            uiMessage: UiMessage(UiMessageId.programSucceeded, {
+              'count': image.length,
+            }),
             image: image,
           );
       }
@@ -467,12 +546,21 @@ final class _MiniproOperationHandle implements OperationHandle {
       _writeStarted
           ? _finishRecovery(
               'Stop requested after writing began; verify contents before continuing.',
+              uiMessage: const UiMessage(UiMessageId.stopAfterWrite),
             )
           : _finishCancelled();
     } catch (error) {
       _writeStarted
-          ? _finishRecovery('minipro write operation failed: $error')
-          : _finishFailure('minipro operation failed: $error');
+          ? _finishRecovery(
+              'minipro write operation failed: $error',
+              uiMessage: const UiMessage(UiMessageId.technicalFailure),
+              technicalDetail: '$error',
+            )
+          : _finishFailure(
+              'minipro operation failed: $error',
+              uiMessage: const UiMessage(UiMessageId.technicalFailure),
+              technicalDetail: '$error',
+            );
     } finally {
       try {
         if (temp != null && await temp.exists()) {
@@ -568,23 +656,34 @@ final class _MiniproOperationHandle implements OperationHandle {
     return count;
   }
 
-  void _emit(OperationPhase phase, String message) => _events.add(
-    OperationEvent(
-      operationId: _plan.operationId,
-      phase: phase,
-      message: message,
-    ),
-  );
-  void _finishSuccess(String message, {BinaryImage? image}) => _finish(
+  void _emit(OperationPhase phase, String message, UiMessage uiMessage) =>
+      _events.add(
+        OperationEvent(
+          operationId: _plan.operationId,
+          phase: phase,
+          message: message,
+          uiMessage: uiMessage,
+        ),
+      );
+  void _finishSuccess(
+    String message, {
+    UiMessage? uiMessage,
+    String? technicalDetail,
+    BinaryImage? image,
+  }) => _finish(
     OperationResult(
       operationId: _plan.operationId,
       phase: OperationPhase.succeeded,
       message: message,
+      uiMessage: uiMessage,
+      technicalDetail: technicalDetail,
       image: image,
     ),
   );
   void _finishFailure(
     String message, {
+    UiMessage? uiMessage,
+    String? technicalDetail,
     BinaryImage? image,
     Mismatch? mismatch,
     int mismatchCount = 0,
@@ -593,6 +692,8 @@ final class _MiniproOperationHandle implements OperationHandle {
       operationId: _plan.operationId,
       phase: OperationPhase.failed,
       message: message,
+      uiMessage: uiMessage ?? const UiMessage(UiMessageId.technicalFailure),
+      technicalDetail: technicalDetail ?? (uiMessage == null ? message : null),
       image: image,
       mismatch: mismatch,
       mismatchCount: mismatchCount,
@@ -600,6 +701,8 @@ final class _MiniproOperationHandle implements OperationHandle {
   );
   void _finishRecovery(
     String message, {
+    UiMessage? uiMessage,
+    String? technicalDetail,
     BinaryImage? image,
     Mismatch? mismatch,
     int mismatchCount = 0,
@@ -608,6 +711,8 @@ final class _MiniproOperationHandle implements OperationHandle {
       operationId: _plan.operationId,
       phase: OperationPhase.recoveryRequired,
       message: message,
+      uiMessage: uiMessage ?? const UiMessage(UiMessageId.technicalFailure),
+      technicalDetail: technicalDetail ?? (uiMessage == null ? message : null),
       image: image,
       mismatch: mismatch,
       mismatchCount: mismatchCount,
@@ -618,6 +723,7 @@ final class _MiniproOperationHandle implements OperationHandle {
       operationId: _plan.operationId,
       phase: OperationPhase.cancelled,
       message: 'Operation stopped before the next hardware command.',
+      uiMessage: const UiMessage(UiMessageId.operationCancelled),
     ),
   );
   void _finish(OperationResult value) {
@@ -643,6 +749,7 @@ final class _RejectedOperationHandle implements OperationHandle {
           operationId: plan.operationId,
           phase: OperationPhase.failed,
           message: message,
+          uiMessage: const UiMessage(UiMessageId.operationAlreadyRunning),
         ),
       );
   final Future<OperationResult> _completed;

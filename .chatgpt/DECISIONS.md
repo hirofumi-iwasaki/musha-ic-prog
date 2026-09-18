@@ -111,3 +111,11 @@ release commit, publish English release notes titled `v0.2.0`, and rebuild all
 five assets from that tag through the release workflow. The earlier withdrawal
 record remains historical. This approval is not physical hardware test evidence
 and does not request merging PR #2.
+
+## D32: v0.3.0 UI language selection (2026-09-18)
+
+The user approved [LOCALIZATION_0.3.0.md](LOCALIZATION_0.3.0.md) and requested implementation. System mode uses only the primary OS UI language: Japanese for ja, English otherwise. Manual English/Japanese overrides persist per user and switch immediately without replacing the programmer controller. App-owned UI and messages use generated ARB localizations; raw tool diagnostics remain available separately. macOS menus follow the resolved language; OS-owned dialogs may follow OS settings. Windows/Linux setting changes are guaranteed to be re-read after restart, not advertised as live changes. D13's English-only baseline is superseded.
+
+## D33: Catalog keyboard selection
+
+Vendor and full-device dropdowns provide timed case-insensitive prefix navigation, repeated-initial cycling, visible highlight scrolling, explicit Enter confirmation and Escape cancellation. Device text entry retains substring search. Recheck operation locks and catalog membership after popup dismissal. Details: [KEYBOARD_SELECTION_0.3.0.md](KEYBOARD_SELECTION_0.3.0.md).
