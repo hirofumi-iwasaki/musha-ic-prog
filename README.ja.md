@@ -54,7 +54,7 @@ macOS版のGitHub Actionsビルド、静的解析、テスト、リリースフ�
 
 - macOS 15以降、Apple Silicon（M1以降）
 - 新たな移植先としてWindows 11 x64／ARM64、またはUbuntu 22.04／24.04 LTS x64／ARM64
-- IC操作にはUSB接続のTL866CSが必要
+- IC操作にはUSB接続のTL866CS／TL866A／TL866II Plusが必要
 - 配布アプリの実行にFlutter、Homebrew、minipro、libusbの別途インストールは不要
 
 開発にはFlutter 3.47.4、Dart 3.13.3、Xcodeを使用しています。macOS 27.0（26A428）とTL866CSファームウェア03.2.86（0x256）で本体への接続を確認しました。macOS 15／26でのGUIと実機の受入確認は、CIのビルド確認とは別に扱っています。

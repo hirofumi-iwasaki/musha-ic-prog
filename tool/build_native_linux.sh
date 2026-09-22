@@ -17,7 +17,7 @@ mkdir -p "$source_dir"
 fetch "$source_dir/libusb-$libusb_version.tar.bz2" "$libusb_sha256" "https://github.com/libusb/libusb/releases/download/v$libusb_version/libusb-$libusb_version.tar.bz2"
 [[ -f "$source_dir/minipro-$minipro_commit.tar.gz" ]] || cp "$project_dir/third_party/minipro/source/minipro-$minipro_commit.tar.gz" "$source_dir/minipro-$minipro_commit.tar.gz"
 fetch "$source_dir/minipro-$minipro_commit.tar.gz" "$minipro_sha256" "https://gitlab.com/DavidGriffith/minipro/-/archive/$minipro_commit/minipro-$minipro_commit.tar.gz"
-fetch "$source_dir/zlib-$zlib_version.tar.gz" "$zlib_sha256" "https://zlib.net/zlib-$zlib_version.tar.gz"
+fetch "$source_dir/zlib-$zlib_version.tar.gz" "$zlib_sha256" "https://github.com/madler/zlib/releases/download/v$zlib_version/zlib-$zlib_version.tar.gz"
 rm -rf "$prefix"; mkdir -p "$prefix"
 work_dir=$(mktemp -d "$project_dir/.tooling/.native-linux.XXXXXX")
 tar -xjf "$source_dir/libusb-$libusb_version.tar.bz2" -C "$work_dir"; tar -xzf "$source_dir/zlib-$zlib_version.tar.gz" -C "$work_dir"

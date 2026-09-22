@@ -39,3 +39,7 @@ T76は購入可能だが購入済みではない。今回これらの実機操�
 - T48: INFOIC2PLUSフィルターは共通基盤を利用可能。操作別のminipro制約と実機での読出し/書込みの確認が必要。
 - T56/T76: 外部アルゴリズムの利用者指定・完全性/機種チェック、操作別の実装範囲を追加設計する。同梱権利が未確認のデータは配布しない。
 - T76購入後: まずICを挿さず機種/firmware/serial検出を記録し、既知BINのある対応ICで読出し・照合、最後に書込み用ICで書込み/読戻しを検証する。OSごとのUSB導入手順も記録する。
+
+## Release CI correction
+
+The zlib.net URL returned a non-archive response on GitHub runners. Windows/Linux now download the identical zlib 1.3.2 release archive from the upstream madler/zlib GitHub release. The pinned SHA-256 remains unchanged and was independently checked before switching URLs.
