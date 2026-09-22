@@ -17,7 +17,7 @@ mkdir -p "$source_dir"
 fetch "$source_dir/libusb-$libusb_version.tar.bz2" "$libusb_sha256" "https://github.com/libusb/libusb/releases/download/v$libusb_version/libusb-$libusb_version.tar.bz2"
 [[ -f "$source_dir/minipro-$minipro_commit.tar.gz" ]] || cp "$project_dir/third_party/minipro/source/minipro-$minipro_commit.tar.gz" "$source_dir/minipro-$minipro_commit.tar.gz"
 fetch "$source_dir/minipro-$minipro_commit.tar.gz" "$minipro_sha256" "https://gitlab.com/DavidGriffith/minipro/-/archive/$minipro_commit/minipro-$minipro_commit.tar.gz"
-fetch "$source_dir/zlib-$zlib_version.tar.gz" "$zlib_sha256" "https://zlib.net/zlib-$zlib_version.tar.gz"
+fetch "$source_dir/zlib-$zlib_version.tar.gz" "$zlib_sha256" "https://github.com/madler/zlib/releases/download/v$zlib_version/zlib-$zlib_version.tar.gz"
 rm -rf "$prefix"; mkdir -p "$prefix"
 work_dir=$(mktemp -d "$project_dir/.tooling/.native-linux.XXXXXX")
 tar -xjf "$source_dir/libusb-$libusb_version.tar.bz2" -C "$work_dir"; tar -xzf "$source_dir/zlib-$zlib_version.tar.gz" -C "$work_dir"
@@ -29,6 +29,7 @@ make -C "$work_dir/zlib-$zlib_version" -j"$(nproc)"; make -C "$work_dir/zlib-$zl
 minipro_dir=$(mktemp -d "$project_dir/.tooling/.minipro-linux.XXXXXX")
 tar -xzf "$source_dir/minipro-$minipro_commit.tar.gz" --strip-components=1 -C "$minipro_dir"
 cp "$project_dir/third_party/minipro/sram/sram_test.c" "$minipro_dir/src/sram_test.c"; cp "$project_dir/third_party/minipro/sram/sram_test.h" "$minipro_dir/src/sram_test.h"
+git -C "$minipro_dir" apply "$project_dir/third_party/minipro/patches/expected-programmer.patch"
 if ! grep -q 'src/sram_test.o' "$minipro_dir/Makefile"; then awk '/^COMMON_OBJECTS=/ {print; print "\t\tsrc/sram_test.o \\"; next} {print}' "$minipro_dir/Makefile" > "$minipro_dir/Makefile.new"; mv "$minipro_dir/Makefile.new" "$minipro_dir/Makefile"; fi
 mkdir "$work_dir/bin"
 cat > "$work_dir/bin/pkg-config" <<'EOF'
@@ -68,9 +69,10 @@ zlib_version=$zlib_version
 zlib_sha256=$zlib_sha256
 minipro_commit=$minipro_commit
 minipro_archive_sha256=$minipro_sha256
-minipro_overlay=sram_test.c,sram_test.h
+minipro_overlay=sram_test.c,sram_test.h,expected-programmer.patch
 minipro_sram_test_c_sha256=$(sha256 "$project_dir/third_party/minipro/sram/sram_test.c")
 minipro_sram_test_h_sha256=$(sha256 "$project_dir/third_party/minipro/sram/sram_test.h")
+minipro_expected_programmer_patch_sha256=$(sha256 "$project_dir/third_party/minipro/patches/expected-programmer.patch")
 tl866_probe_c_sha256=$(sha256 "$project_dir/native/tl866_probe.c")
 infoic_xml_sha256=$(sha256 "$prefix/resources/minipro/infoic.xml")
 logicic_xml_sha256=$(sha256 "$prefix/resources/minipro/logicic.xml")

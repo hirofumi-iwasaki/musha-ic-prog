@@ -145,3 +145,21 @@ republished; Windows evaluation artifacts include the one-time setup guide.
 Details and evidence: [LOCALIZATION_0.3.0.md](LOCALIZATION_0.3.0.md).
 
 Catalog keyboard selection (D33): vendor/full-device typeahead implemented, existing device text search retained and Enter submission connected. Static analysis and all 79 tests pass. See [keyboard selection record](KEYBOARD_SELECTION_0.3.0.md).
+
+## v0.4.0 設計開始（2026-09-22）
+
+最新origin/main（09fc312）からrelease/0.4.0を作成。
+[TL866II Plus・機種拡張設計](MULTI_PROGRAMMER_0.4.0.md)に変更箇所、他機種調査、実装順序、OS別検証条件を記録した。
+設計後、ユーザー承認を受け実装開始。進捗と実機未確認の範囲は[実装記録](IMPLEMENTATION_0.4.0.md)に記載する。今回のcommit/push・公開は依頼されていない。
+
+### v0.4.0 自動検証完了
+
+CS/II+共通化、共有DBフィルター、同一ハンドルでの本体照合、英日UI切替を実装。Flutter101件、静的解析、native guard、既存SRAM試験が成功。TL866II Plus本体は未所有のため実機検証は未実施。残る機種は設計の後続対象として維持する。
+
+### TL866A追加対応（2026-09-22）
+
+- 選択機種をTL866CS/TL866A/TL866II Plusの3機種へ拡張。
+- TL866AはINFOIC/LOGICカタログ、直接DIPのbyteメモリー操作に対応。ICSPは対象外。
+- CS/Aは共有USB IDだけでは判定せず、検出時と操作プロセス内の実機モデル照合で区別。
+- プロファイル・接続切替・英日表示・native照合試験を追加。実機未所有のためハードウェア検証は未実施。
+- 最終検証: Flutter全110件、native SRAM/guard試験成功。macOS 0.4.0+5配布アプリのビルド・署名検証成功。

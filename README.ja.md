@@ -8,6 +8,28 @@
 
 バージョン0.2.0では、TL866CS用アプリケーションをmacOS ARM64、Windows x64／ARM64、Ubuntu x64／ARM64の5プラットフォームへ拡張しています。各移植版の検証を進めており、CIでのビルド確認と実機でのUSB動作確認は分けて管理しています。Dart／Flutter構成により、今後はXGecu T56などのプログラマー用バックエンドを各OSへ追加できます。ビューアーの表示方法は[Mushagaeshi Binary Editor](https://github.com/hirofumi-iwasaki/musha-bin-editor)を参考にしています。
 
+## v0.4.0: TL866A / TL866II Plus
+
+v0.4.0では、同梱miniproの共通バックエンドを使い、**TL866CS**に加えて**TL866A**と**TL866II Plus**を選択できます。本体の機種を選んでから接続を更新してください。共有INFOIC2PLUS内の機種限定項目も判定し、選択機種に対応するデバイスを表示します。機種変更時は接続とIC選択を解除します。入力ファイルは維持し、以前の読み出し結果は過去のターゲットのデータとして識別できます。
+
+TL866A/TL866II Plusの実機検証は未実施です。現在は検証用のTL866A/TL866II Plus本体がありません。読取り・ブランクチェック・書込み・照合は、直接DIP挿入・byte編成の対応メモリープロファイルに限定します。ICSP・T48・T56・T76は今後の対応対象です。T56/T76には別途外部アルゴリズムデータが必要で、同梱しません。[実装・検証記録](.chatgpt/IMPLEMENTATION_0.4.0.md)を参照してください。
+
+### デバイス一覧と操作可能な範囲
+
+| プログラマー | カタログ | 表示件数（別名を含む） |
+| --- | --- | ---: |
+| TL866CS | INFOIC＋LOGIC | 14,497 |
+| TL866A | INFOIC＋LOGIC | 14,497 |
+| TL866II Plus | 機種判定済みINFOIC2PLUS＋LOGIC | 19,255 |
+
+TL866AとTL866CSの一覧は、同梱miniproの仕様に合わせて共通です。TL866II PlusではT48/T56専用項目を除外します。機種変更時にはベンダー・デバイス一覧を更新し、以前の選択を解除します。
+
+一覧への掲載は操作可能であることを保証しません。ロジック、MCU、変換アダプター、ICSP用の項目も閲覧できますが、操作は条件を満たす直接DIP挿入・byte編成のメモリーに限定されます。ICSP専用項目、実機SRAM／ロジック試験、未対応プロファイルは操作できません。操作前にはIC情報と本体の機種・serial・firmwareを再確認します。
+
+未対応機種を含め、接続するminipro系プログラマーは1台にしてください。TL866II Plus・T48・T56はUSB ID **A466:0A53**を共有します。本体の機種を確認し、IC操作を行うプロセス内でも同一性を再検証します。TL866II Plusを選択してもT48/T56の操作は有効になりません。
+
+Windowsでは、下記導入手順で**TL866II Plus（A466:0A53）へWinUSBを割り当ててください**。TL866CS用（04D8:E11C）の割り当てでは代用できません。LinuxではA466:0A53を追加した同梱udevルールへ更新します。macOSは同梱libusbを継続します。いずれも新機種での実機確認は未実施です。
+
 ## v0.3.0のリリース状況
 
 [v0.3.0](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.3.0)では、日本語・英語の自動表示と設定を保存する言語選択、ベンダー・デバイス一覧のキーボード選択を追加しました。「BINを開く」は入力ペーン上部のバイト幅切り替えの隣へ移動し、左右それぞれにアドレスの「移動」ボタンを配置しました。未接続時の警告は下部ステータスに集約し、エラーを赤色で表示します。プログラマーの操作とUSB通信方式は変更していません。
@@ -32,7 +54,7 @@ macOS版のGitHub Actionsビルド、静的解析、テスト、リリースフ�
 
 - macOS 15以降、Apple Silicon（M1以降）
 - 新たな移植先としてWindows 11 x64／ARM64、またはUbuntu 22.04／24.04 LTS x64／ARM64
-- IC操作にはUSB接続のTL866CSが必要
+- IC操作にはUSB接続のTL866CS／TL866A／TL866II Plusが必要
 - 配布アプリの実行にFlutter、Homebrew、minipro、libusbの別途インストールは不要
 
 開発にはFlutter 3.47.4、Dart 3.13.3、Xcodeを使用しています。macOS 27.0（26A428）とTL866CSファームウェア03.2.86（0x256）で本体への接続を確認しました。macOS 15／26でのGUIと実機の受入確認は、CIのビルド確認とは別に扱っています。
@@ -69,7 +91,7 @@ open 'dist/Mushagaeshi IC Programmer.app'
 
 ### ダウンロードと展開
 
-1. [v0.3.0](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.3.0)から取得します。Intel／AMD搭載のWindows PCには`musha-ic-prog-windows-x64.zip`、Windows ARM PCやApple Silicon上のParallelsで動かすWindowsには`musha-ic-prog-windows-arm64.zip`を使用してください。
+1. [v0.4.0](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.4.0)から取得します。Intel／AMD搭載のWindows PCには`musha-ic-prog-windows-x64.zip`、Windows ARM PCやApple Silicon上のParallelsで動かすWindowsには`musha-ic-prog-windows-arm64.zip`を使用してください。
 2. 実行前に配布ファイル全体を展開します。`mushagaeshi_ic_programmer.exe`、各DLL、`data/`、`native/`、`resources/`をまとめて保持してください。特に`native/libusb-1.0.dll`は`native/minipro.exe`と同じ場所に必要です。
 3. `mushagaeshi_ic_programmer.exe`を開きます。Flutter、MiniPro、libusbを別途インストールする必要はありません。プログラマーを接続しなくてもファイルを閲覧できますが、USB操作には以下のドライバー割り当てが必要です。
 
@@ -77,18 +99,18 @@ Windows通信修正前のv0.2.0を取得している場合は、再公開版へ�
 
 ### TL866CSをWindowsへ接続する
 
-純正MiniProを含む、ほかのプログラマー用ソフトを終了します。TL866CSを1台だけUSB接続してください。
+純正MiniProを含む、ほかのプログラマー用ソフトを終了します。対応プログラマーを1台だけUSB接続し、アプリで機種を選択してください。
 
 Mac上のParallelsでは、USBデバイスのメニューまたは接続時の確認画面から、**MiniPro TL-866 Programmer**をWindows仮想マシンへ割り当てます。macOS側ではなくWindows側へ接続してください。再起動や抜き差しのあとにアプリが機器を検出できない場合は、この割り当ても確認します。
 
 ### ZadigでWinUSBを割り当てる
 
-WinUSBドライバー自体はWindowsに含まれていますが、TL866CSへの初回割り当てが必要な場合があります。この設定には管理者の承認が必要です。通常のアプリ利用では管理者権限は不要です。
+WinUSBドライバー自体はWindowsに含まれていますが、プログラマーへの初回割り当てが必要な場合があります。この設定には管理者の承認が必要です。通常のアプリ利用では管理者権限は不要です。
 
 1. [Zadig公式サイト](https://zadig.akeo.ie/)から最新版を取得します。ARM64へのWinUSBインストール対応はZadig 2.8で追加されましたが、後述するWindows ARM64の署名制限がなくなるわけではありません。
 2. Zadigを起動し、管理者の確認画面を承認します。
 3. **Options > List All Devices**を選びます。
-4. **MiniPro TL-866 Programmer**、またはTL866CSに該当する項目を選択します。先へ進む前に、**USB IDが`04D8 E11C`であることを確認**してください。キーボード、マウス、ハブなど別のUSB機器を選ばないでください。TL866Aも同じIDを使用しますが、アプリが別途機種を確認し、TL866CSの操作だけを有効にします。
+4. **MiniPro TL-866 Programmer**、またはTL866CSに該当する項目を選択します。先へ進む前に、**USB IDがTL866A/CSでは`04D8 E11C`、TL866II Plusでは`A466 0A53`であることを確認**してください。キーボード、マウス、ハブなど別のUSB機器を選ばないでください。TL866Aも同じIDを使用しますが、アプリが別途機種を確認し、選択機種と接続本体の一致を必須とします（v0.4.0ではTL866CS/TL866A）。
 5. 置き換え先のドライバーに**WinUSB**を選び、**Install Driver**または**Replace Driver**を押します。このアプリ用にはlibusbKやlibusb-win32を選ばないでください。
 6. インストール成功後、TL866CSを抜き差しし、アプリを開いて接続を更新します。
 
@@ -138,7 +160,7 @@ This version of Windows is refusing to trust the installed certificate.
 | 結果 | 確認すること |
 | --- | --- |
 | `count`が`0` | ケーブル、USB接続、ParallelsでWindows側へ割り当てられているか。 |
-| 一致する機器が複数ある | 余分なTL866A／CSを取り外す。 |
+| 一致する機器が複数ある | 別機種も含め、余分なminipro系プログラマーを取り外す。 |
 | `driverService`が空 | ドライバーの割り当てが完了していません。Zadigの手順を確認する。 |
 | `driverService`が`WinUSB`ではない | 別のドライバーが割り当てられています。Zadigの対象機器とドライバーを確認する。 |
 | `driverService`が`WinUSB`、`interfaceReady`が`true` | ドライバーの前提条件は満たしていますが、アプリによる機種・ファームウェア確認は別途必要です。接続に失敗する場合は他のプログラマー用ソフトを終了し、再接続する。 |
@@ -147,7 +169,7 @@ This version of Windows is refusing to trust the installed certificate.
 
 ## Ubuntuの導入手順
 
-Ubuntu環境のCPUに合った`musha-ic-prog-linux-x64.tar.gz`または`musha-ic-prog-linux-arm64.tar.gz`を[Releases](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.3.0)から取得します。全体を展開し、展開先の`mushagaeshi_ic_programmer`を実行してください。
+Ubuntu環境のCPUに合った`musha-ic-prog-linux-x64.tar.gz`または`musha-ic-prog-linux-arm64.tar.gz`を[Releases](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.4.0)から取得します。全体を展開し、展開先の`mushagaeshi_ic_programmer`を実行してください。
 
 ディストリビューションのGTK 3、EGL／OpenGL、LZMA実行時ライブラリー（`libgtk-3-0`、`libegl1`、`libgles2`、`libgl1-mesa-dri`、`liblzma5`）が必要です。USBアクセスが拒否される場合は、同梱の[USBアクセス設定手順](linux/udev/README.md)に従ってください。アプリをrootで実行しないでください。
 
@@ -174,7 +196,7 @@ Linuxでは実機動作成功のユーザー報告がありますが、ディス
 
 ## GitHub Actionsによるビルド
 
-**Desktop build and package**ワークフローは、`release/0.3.0`へのpush、プルリクエスト、Release公開、手動実行で動作します。Flutter 3.47.4のリビジョン`9584c6713b324636289d067944a46fd6b49df14b`に固定し、各CPUでネイティブに動作するランナーを使って5種類をビルドします。Ubuntu版は22.04上で作成し、24.04でも画面表示を伴わない起動確認を行います。
+**Desktop build and package**ワークフローは、`release/0.4.0`へのpush、プルリクエスト、Release公開、手動実行で動作します。Flutter 3.47.4のリビジョン`9584c6713b324636289d067944a46fd6b49df14b`に固定し、各CPUでネイティブに動作するランナーを使って5種類をビルドします。Ubuntu版は22.04上で作成し、24.04でも画面表示を伴わない起動確認を行います。
 
 | 対象 | 配布ファイル |
 | --- | --- |
@@ -238,7 +260,7 @@ Flutterのテストでは、コントローラーの動作、プロファイル�
 
 ビューアーはデータをメモリー上に保持し、上限は64 MiBです。バイナリー編集、読出し結果の保存UI、コピー、ページ単位の読込みは未実装です。ファイルは同じオフセット同士で比較し、挿入や削除による位置のずれは補正しません。
 
-選択できるプログラマーはTL866CSのみです。T56対応、ロジックICの試験実行、実機SRAM試験は今後の課題です。Windows／Linuxの実機検証はCPU構成ごとに記録します。SRAM試験エンジンは独立した拡張基盤として存在しています。実機操作を利用できることと、そのICで実測検証が済んでいることは分けて管理しています。
+公開版v0.3.0はTL866CSに対応します。v0.4.0ではTL866AとTL866II Plusを制約付き評価対象として追加し、実機検証は未実施です。T48・T56・T76、ロジックICの試験実行、実機SRAM試験は今後の課題です。Windows／Linuxの実機検証はCPU構成ごとに記録します。SRAM試験エンジンは独立した拡張基盤として存在しています。実機操作を利用できることと、そのICで実測検証が済んでいることは分けて管理しています。
 
 ## ライセンス
 

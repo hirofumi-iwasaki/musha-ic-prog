@@ -11,6 +11,7 @@ import '../../../core/models/binary_image.dart';
 import '../../../core/models/device_profile.dart';
 import '../../../core/models/operation.dart';
 import '../../../core/models/programmer.dart';
+import '../../../core/models/programmer_definition.dart';
 import '../../../core/models/ui_message.dart';
 import '../../../core/ports/programmer_backend.dart';
 import 'native_payload_locator.dart';
@@ -19,14 +20,19 @@ import 'process_runner.dart';
 export 'native_payload_locator.dart'
     show MiniproBundlePaths, NativePayloadLocator;
 
-/// Real TL866CS adapter. Identity scans enumerate USB only; ZIF actions need
-/// either empirical validation or an explicitly authorized evaluation profile.
+/// Real MiniPro adapter configured for one physical programmer model.
+///
+/// The no-argument constructor intentionally remains the TL866CS adapter for
+/// existing callers. Discovery counts every MiniPro USB ID before accepting a
+/// selected model, so a CS and II Plus connected together cannot be mistaken
+/// for a single usable programmer.
 final class MiniproTl866Backend
     implements
         ProgrammerBackend,
         ProgrammerDiscoveryDiagnostics,
         ProgrammerDiscoveryUiMessages {
   MiniproTl866Backend({
+    this.programmer = ProgrammerDefinitions.tl866cs,
     MiniproBundlePaths? paths,
     ProcessRunner? runner,
     String? operatingSystem,
@@ -35,6 +41,7 @@ final class MiniproTl866Backend
        _operatingSystem = operatingSystem ?? Platform.operatingSystem;
 
   final MiniproBundlePaths _paths;
+  final ProgrammerDefinition programmer;
   final ProcessRunner _runner;
   final String _operatingSystem;
   int _generation = 0;
@@ -49,10 +56,22 @@ final class MiniproTl866Backend
       _discoveryUiMessage ??
       (_discoveryReason == null
           ? null
-          : const UiMessage(UiMessageId.backendDiscoveryFailure));
+          : _modelMessage(UiMessageId.backendDiscoveryFailure));
 
   @override
-  String get backendId => 'minipro-tl866cs';
+  String get backendId => 'minipro-${programmer.id.name}';
+
+  String get _expectedMachineModel => switch (programmer.id) {
+    ProgrammerId.tl866a => 'tl866a',
+    ProgrammerId.tl866cs => 'tl866cs',
+    ProgrammerId.tl866iiPlus => 'tl866ii',
+    ProgrammerId.t48 => 't48',
+    ProgrammerId.t56 => 't56',
+    ProgrammerId.t76 => 't76',
+  };
+
+  UiMessage _modelMessage(UiMessageId id) =>
+      UiMessage(id, {'programmer': programmer.displayName});
 
   @override
   Future<List<ProgrammerConnection>> scan() async {
@@ -60,7 +79,7 @@ final class MiniproTl866Backend
     _discoveryUiMessage = null;
     if (!_paths.isPresent) {
       _discoveryReason =
-          'TL866CS native payload is incomplete: ${_paths.missingFiles.join(', ')}.';
+          '${programmer.displayName} native payload is incomplete: ${_paths.missingFiles.join(', ')}.';
       return const [];
     }
     try {
@@ -71,7 +90,8 @@ final class MiniproTl866Backend
       }
       final decoded = jsonDecode(probe.stdout);
       if (decoded is! Map) {
-        _discoveryReason = 'TL866CS discovery helper returned invalid data.';
+        _discoveryReason =
+            '${programmer.displayName} discovery helper returned invalid data.';
         return const [];
       }
       final rawDevices = decoded['devices'];
@@ -79,7 +99,7 @@ final class MiniproTl866Backend
           decoded['count'] is! num ||
           (decoded['count'] as num).toInt() != rawDevices.length) {
         _discoveryReason =
-            'TL866CS discovery helper returned invalid device data.';
+            '${programmer.displayName} discovery helper returned invalid device data.';
         return const [];
       }
       if (rawDevices.isEmpty) {
@@ -87,21 +107,19 @@ final class MiniproTl866Backend
         return const [];
       }
       if (rawDevices.length != 1) {
-        _discoveryReason = 'More than one TL866A/CS programmer was detected.';
+        _discoveryReason = 'More than one MiniPro programmer was detected.';
         return const [];
       }
       final item = rawDevices.single;
-      if (item is! Map ||
-          '${item['vendorId']}'.toLowerCase() != '04d8' ||
-          '${item['productId']}'.toLowerCase() != 'e11c') {
+      if (item is! Map || !_matchesSelectedUsbId(item)) {
         _discoveryReason =
-            'TL866CS discovery helper returned an unsupported device.';
+            '${programmer.displayName} discovery helper returned a different or unsupported device.';
         return const [];
       }
       final identifier = _identifierFor(item);
       if (identifier == null) {
         _discoveryReason =
-            'TL866CS discovery helper returned no stable device identity.';
+            '${programmer.displayName} discovery helper returned no stable device identity.';
         return const [];
       }
       if (item['interfaceReady'] == false) {
@@ -110,7 +128,7 @@ final class MiniproTl866Backend
       }
       final presence = await _run(_paths.executable, const ['-k']);
       final presenceText = '${presence.stdout}\n${presence.stderr}';
-      if (presence.exitCode != 0 || !presenceText.contains('tl866a: TL866CS')) {
+      if (presence.exitCode != 0 || !_hasExpectedKeyModel(presenceText)) {
         _discoveryReason = _miniproFailureReason(presence);
         return const [];
       }
@@ -122,33 +140,109 @@ final class MiniproTl866Backend
         '-V',
       ]);
       final versionText = '${version.stdout}\n${version.stderr}';
-      final firmware = RegExp(
-        r'Found TL866CS\s+([^\s]+)\s+\((0x[0-9a-fA-F]+)\)',
-      ).firstMatch(versionText);
+      final firmware = _firmwareFromVersion(versionText);
       if (version.exitCode != 0 ||
           firmware == null ||
           versionText.toLowerCase().contains('bootloader mode')) {
         _discoveryReason = versionText.toLowerCase().contains('bootloader mode')
-            ? 'TL866CS is in bootloader mode; reconnect it normally before use.'
+            ? '${programmer.displayName} is in bootloader mode; reconnect it normally before use.'
             : _miniproFailureReason(version);
+        return const [];
+      }
+      final guard = await _connectionGuard();
+      if (guard == null || guard.firmware != firmware.split(' ').first) {
+        _discoveryReason =
+            '${programmer.displayName} same-handle identity and firmware check failed.';
         return const [];
       }
       return [
         ProgrammerConnection(
           backendId: backendId,
-          model: 'TL866CS',
+          model: programmer.displayName,
           identifier: identifier,
-          firmware: '${firmware.group(1)} ${firmware.group(2)}',
+          firmware: firmware,
           generation: ++_generation,
+          sameHandleIdentity: guard.identity,
         ),
       ];
     } on FormatException {
-      _discoveryReason = 'TL866CS discovery helper returned invalid JSON.';
+      _discoveryReason =
+          '${programmer.displayName} discovery helper returned invalid JSON.';
       return const [];
     } catch (_) {
-      _discoveryReason = 'TL866CS discovery helper could not be started.';
+      _discoveryReason =
+          '${programmer.displayName} discovery helper could not be started.';
       return const [];
     }
+  }
+
+  Future<_OpenedMiniProConnection?> _connectionGuard() async {
+    final response = await _run(_paths.executable, const ['--connection-json']);
+    if (response.exitCode != 0) return null;
+    try {
+      final decoded = jsonDecode(response.stdout);
+      if (decoded is! Map || decoded['schemaVersion'] != 1) return null;
+      final model = decoded['model'];
+      final firmware = decoded['firmware'];
+      final identity = decoded['identity'];
+      if (model is! String ||
+          firmware is! String ||
+          identity is! String ||
+          model != _expectedMachineModel ||
+          firmware.isEmpty ||
+          !RegExp(r'^serial:.+').hasMatch(identity)) {
+        return null;
+      }
+      return _OpenedMiniProConnection(identity: identity, firmware: firmware);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  bool _matchesSelectedUsbId(Map item) {
+    final vendor = '${item['vendorId']}'.trim().toLowerCase();
+    final product = '${item['productId']}'.trim().toLowerCase();
+    return programmer.usbVendorProductIds.contains('$vendor:$product');
+  }
+
+  bool _hasExpectedKeyModel(String text) {
+    return switch (programmer.id) {
+      ProgrammerId.tl866a => _hasExactKeyModel(text, 'tl866a', 'tl866a'),
+      ProgrammerId.tl866cs => _hasExactKeyModel(text, 'tl866a', 'tl866cs'),
+      ProgrammerId.tl866iiPlus =>
+        _hasExactKeyModel(text, 'tl866ii', 'tl866ii+') ||
+            _hasExactKeyModel(text, 'tl866ii', 'tl866ii plus'),
+      _ => _hasExactKeyModel(
+        text,
+        programmer.miniproModelName,
+        programmer.expectedHardwareModel,
+      ),
+    };
+  }
+
+  bool _hasExactKeyModel(String text, String selector, String model) => RegExp(
+    '^\\s*${RegExp.escape(selector)}:\\s*${RegExp.escape(model)}\\s*\$',
+    caseSensitive: false,
+    multiLine: true,
+  ).hasMatch(text);
+
+  String? _firmwareFromVersion(String text) {
+    final found = RegExp(
+      r'Found\s+([^\r\n]+?)\s+([^\s]+)\s+\((0x[0-9a-fA-F]+)\)',
+    ).firstMatch(text);
+    if (found == null || !_versionNamesSelectedModel(found.group(1)!)) {
+      return null;
+    }
+    return '${found.group(2)} ${found.group(3)}';
+  }
+
+  bool _versionNamesSelectedModel(String name) {
+    final normalized = name.trim().toLowerCase();
+    return switch (programmer.id) {
+      ProgrammerId.tl866iiPlus =>
+        normalized == 'tl866ii+' || normalized == 'tl866ii plus',
+      _ => normalized == programmer.expectedHardwareModel.toLowerCase(),
+    };
   }
 
   String? _identifierFor(Map item) {
@@ -175,8 +269,8 @@ final class MiniproTl866Backend
     if (state.contains('permission') || state.contains('access')) {
       return _libusbAccessReason();
     }
-    _discoveryUiMessage = const UiMessage(UiMessageId.backendNotDetected);
-    return 'No TL866A/CS programmer was detected.';
+    _discoveryUiMessage = _modelMessage(UiMessageId.backendNotDetected);
+    return 'No ${programmer.displayName} programmer was detected.';
   }
 
   String _windowsDriverReason(Map item) {
@@ -185,12 +279,12 @@ final class MiniproTl866Backend
     final detail = '${item['reason'] ?? ''}'.toLowerCase();
     if (serviceName.isEmpty) {
       return _winusbSetupReason(
-        'No USB driver service is bound to this TL866CS.',
+        'No USB driver service is bound to ${programmer.displayName}.',
       );
     }
     if (serviceName.toLowerCase() != 'winusb') {
       return _winusbSetupReason(
-        'TL866CS is using $serviceName rather than WinUSB.',
+        '${programmer.displayName} is using $serviceName rather than WinUSB.',
       );
     }
     if (detail.contains('bindingunsupported')) {
@@ -200,7 +294,7 @@ final class MiniproTl866Backend
   }
 
   String _winusbSetupReason(String detail) {
-    _discoveryUiMessage = const UiMessage(UiMessageId.backendWinUsbSetup);
+    _discoveryUiMessage = _modelMessage(UiMessageId.backendWinUsbSetup);
     return '$detail Follow README.md (Windows installation), then reconnect the programmer.';
   }
 
@@ -212,7 +306,7 @@ final class MiniproTl866Backend
     if (text.contains('busy') || text.contains('in use')) {
       return _busyReason();
     }
-    return 'TL866CS discovery helper failed: ${_diagnosticText(probe)}';
+    return '${programmer.displayName} discovery helper failed: ${_diagnosticText(probe)}';
   }
 
   String _miniproFailureReason(ProcessTranscript result) {
@@ -226,7 +320,7 @@ final class MiniproTl866Backend
     if (_operatingSystem == 'windows' &&
         (text.contains('libusb_error_no_device') ||
             text.contains('no device'))) {
-      return 'TL866CS was disconnected after discovery. Reconnect it, then refresh the connection.';
+      return '${programmer.displayName} was disconnected after discovery. Reconnect it, then refresh the connection.';
     }
     if (_operatingSystem == 'windows' &&
         (text.contains('driver') ||
@@ -235,10 +329,10 @@ final class MiniproTl866Backend
             text.contains('guid') ||
             text.contains('not supported'))) {
       return _winusbSetupReason(
-        'TL866CS does not have a usable WinUSB interface for libusb.',
+        '${programmer.displayName} does not have a usable WinUSB interface for libusb.',
       );
     }
-    return 'TL866CS model and firmware check failed: ${_diagnosticText(result)}';
+    return '${programmer.displayName} model and firmware check failed: ${_diagnosticText(result)}';
   }
 
   String _diagnosticText(ProcessTranscript result) {
@@ -252,17 +346,21 @@ final class MiniproTl866Backend
       text.contains('access denied');
 
   String _busyReason() {
-    _discoveryUiMessage = const UiMessage(UiMessageId.backendBusy);
-    return 'TL866CS is busy. Close other programmer software, then reconnect it.';
+    _discoveryUiMessage = _modelMessage(UiMessageId.backendBusy);
+    return '${programmer.displayName} is busy. Close other programmer software, then reconnect it.';
   }
 
   String _libusbAccessReason() {
-    _discoveryUiMessage = const UiMessage(UiMessageId.backendUsbAccessDenied);
+    _discoveryUiMessage = _modelMessage(UiMessageId.backendUsbAccessDenied);
     return switch (_operatingSystem) {
-      'windows' => 'TL866CS was detected, but libusb access was denied. Check the WinUSB binding in README.md (Windows installation), then reconnect it.',
-      'linux' => 'TL866CS was detected, but libusb access was denied. Install or reload the TL866 udev rule for the current user, then reconnect it.',
-      'macos' => 'TL866CS was detected, but macOS denied USB access. Check the app USB permission and reconnect it.',
-      _ => 'TL866CS was detected, but libusb access was denied. Reconnect it and check USB permissions.',
+      'windows' =>
+        '${programmer.displayName} was detected, but libusb access was denied. Check the WinUSB binding in README.md (Windows installation), then reconnect it.',
+      'linux' =>
+        '${programmer.displayName} was detected, but libusb access was denied. Install or reload the MiniPro udev rule for the current user, then reconnect it.',
+      'macos' =>
+        '${programmer.displayName} was detected, but macOS denied USB access. Check the app USB permission and reconnect it.',
+      _ =>
+        '${programmer.displayName} was detected, but libusb access was denied. Reconnect it and check USB permissions.',
     };
   }
 
@@ -271,30 +369,48 @@ final class MiniproTl866Backend
     ProgrammerConnection connection,
     DeviceProfile profile,
   ) async {
-    if (connection.backendId != backendId || connection.model != 'TL866CS') {
-      return const BackendCapabilities(
-        reason: 'A single TL866CS is required.',
-        uiReason: UiMessage(UiMessageId.connectOneProgrammer),
+    if (connection.backendId != backendId ||
+        connection.model != programmer.displayName) {
+      return BackendCapabilities(
+        reason: 'A single ${programmer.displayName} is required.',
+        uiReason: _modelMessage(UiMessageId.connectOneProgrammer),
       );
     }
-    if (!profile.isTl866Executable) {
-      return const BackendCapabilities(
-        reason: 'This profile is not approved for real TL866CS evaluation.',
-        uiReason: UiMessage(UiMessageId.backendUnsupportedProfile),
+    if (!programmer.enabled) {
+      return BackendCapabilities(
+        reason:
+            '${programmer.displayName} is not enabled for hardware operations.',
+        uiReason: _modelMessage(UiMessageId.backendUnsupportedProfile),
+      );
+    }
+    if (!profile.isExecutableFor(programmer.id) ||
+        !programmer.databaseTypes.contains(profile.miniproDatabase)) {
+      return BackendCapabilities(
+        reason:
+            'This profile is not approved for real ${programmer.displayName} evaluation.',
+        uiReason: _modelMessage(UiMessageId.backendUnsupportedProfile),
+      );
+    }
+    if (connection.sameHandleIdentity == null ||
+        connection.sameHandleIdentity!.isEmpty) {
+      return BackendCapabilities(
+        reason:
+            '${programmer.displayName} has no same-handle identity guard. Refresh the connection.',
+        uiReason: _modelMessage(UiMessageId.identityCheckFailed),
       );
     }
     final diagnostic = await _validateProfile(profile);
     if (diagnostic != null) {
       return BackendCapabilities(
         reason: diagnostic,
-        uiReason: const UiMessage(UiMessageId.backendProfileValidationFailed),
+        uiReason: _modelMessage(UiMessageId.backendProfileValidationFailed),
       );
     }
-    return const BackendCapabilities(
-      canRead: true,
-      canBlankCheck: true,
-      canProgram: true,
-      canVerify: true,
+    return BackendCapabilities(
+      canRead: programmer.supports(ProgrammerCapability.read),
+      canBlankCheck: programmer.supports(ProgrammerCapability.blankCheck),
+      canProgram: programmer.supports(ProgrammerCapability.program),
+      canVerify: programmer.supports(ProgrammerCapability.verify),
     );
   }
 
@@ -303,7 +419,7 @@ final class MiniproTl866Backend
     if (_operationActive) {
       return _RejectedOperationHandle(
         plan,
-        'Another TL866CS operation is active.',
+        'Another ${programmer.displayName} operation is active.',
       );
     }
     _operationActive = true;
@@ -317,14 +433,15 @@ final class MiniproTl866Backend
     return actual.backendId == expected.backendId &&
         actual.model == expected.model &&
         actual.identifier == expected.identifier &&
-        actual.firmware == expected.firmware;
+        actual.firmware == expected.firmware &&
+        actual.sameHandleIdentity == expected.sameHandleIdentity;
   }
 
   Future<String?> _validateProfile(DeviceProfile profile) async {
     try {
       final response = await _run(_paths.executable, [
         '-q',
-        'tl866a',
+        programmer.miniproModelName,
         '--infoic',
         _paths.infoic,
         '--logicic',
@@ -340,7 +457,7 @@ final class MiniproTl866Backend
       if (response.exitCode != 0 ||
           aliases == null ||
           !aliases.contains(profile.miniproAlias) ||
-          !text.contains('TL866A/CS')) {
+          !_queryShowsSelectedModel(text)) {
         return 'minipro could not resolve the selected device alias.';
       }
       if (memory == null ||
@@ -357,6 +474,35 @@ final class MiniproTl866Backend
     }
   }
 
+  bool _queryShowsSelectedModel(String text) {
+    final normalized = text.toLowerCase();
+    return switch (programmer.id) {
+      ProgrammerId.tl866a => _availableModels(text).contains('tl866a'),
+      ProgrammerId.tl866cs => _availableModels(text).contains('tl866cs'),
+      ProgrammerId.tl866iiPlus => normalized.contains('tl866ii'),
+      _ => normalized.contains(programmer.expectedHardwareModel.toLowerCase()),
+    };
+  }
+
+  Set<String> _availableModels(String text) {
+    final availability = RegExp(
+      r'^Available on:\s*(.+)$',
+      caseSensitive: false,
+      multiLine: true,
+    ).firstMatch(text)?.group(1)?.trim().toLowerCase();
+    if (availability == null) return const {};
+    final models = <String>{};
+    for (final rawModel in availability.split(RegExp(r'[,;]'))) {
+      final model = rawModel.trim();
+      if (model == 'tl866a/cs') {
+        models.addAll({'tl866a', 'tl866cs'});
+      } else if (model == 'tl866a' || model == 'tl866cs') {
+        models.add(model);
+      }
+    }
+    return models;
+  }
+
   Future<ProcessTranscript> _run(String executable, List<String> args) async =>
       collectProcess(
         await _runner.start(
@@ -366,6 +512,16 @@ final class MiniproTl866Backend
           environment: const {'LC_ALL': 'C', 'LANG': 'C'},
         ),
       );
+}
+
+final class _OpenedMiniProConnection {
+  const _OpenedMiniProConnection({
+    required this.identity,
+    required this.firmware,
+  });
+
+  final String identity;
+  final String firmware;
 }
 
 final class _MiniproOperationHandle implements OperationHandle {
@@ -400,8 +556,8 @@ final class _MiniproOperationHandle implements OperationHandle {
     try {
       if (!await _backend._sameConnection(_plan.connection)) {
         return _finishFailure(
-          'TL866CS identity changed; refresh before operating.',
-          uiMessage: const UiMessage(UiMessageId.identityChanged),
+          '${_backend.programmer.displayName} identity changed; refresh before operating.',
+          uiMessage: _backend._modelMessage(UiMessageId.identityChanged),
         );
       }
       final capabilities = await _backend.capabilities(
@@ -497,8 +653,8 @@ final class _MiniproOperationHandle implements OperationHandle {
           if (blank.exitCode != 0) return _finishFailure(_diagnostic(blank));
           if (!await _backend._sameConnection(_plan.connection)) {
             return _finishRecovery(
-              'TL866CS identity changed before writing; no write was started.',
-              uiMessage: const UiMessage(
+              '${_backend.programmer.displayName} identity changed before writing; no write was started.',
+              uiMessage: _backend._modelMessage(
                 UiMessageId.identityChangedBeforeWrite,
               ),
             );
@@ -612,7 +768,8 @@ final class _MiniproOperationHandle implements OperationHandle {
     return BinaryImage(
       bytes: bytes,
       origin: origin,
-      label: '${_plan.profile.partNumber} readout',
+      label:
+          '${_backend.programmer.displayName} ${_plan.profile.partNumber} readout',
     );
   }
 
@@ -623,6 +780,12 @@ final class _MiniproOperationHandle implements OperationHandle {
       _backend._paths.infoic,
       '--logicic',
       _backend._paths.logicic,
+      '--expected-model',
+      _backend._expectedMachineModel,
+      '--expected-identity',
+      _plan.connection.sameHandleIdentity!,
+      '--expected-firmware',
+      _plan.connection.firmware.split(' ').first,
       '-p',
       _plan.profile.miniproAlias!,
       '-c',

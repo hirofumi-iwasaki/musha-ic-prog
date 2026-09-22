@@ -30,6 +30,7 @@ void main(List<String> args) {
     'tool',
     'third_party',
     'test',
+    'tests',
     'macos',
     'windows',
     'linux',

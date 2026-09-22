@@ -18,7 +18,7 @@ $toolchainUrl = "https://github.com/mstorsjo/llvm-mingw/releases/download/$toolc
 $toolchainHash = '810703594a7e3eea03385b5329c7ea3bd65f5e496b44cf1b68c17ff436d265e7'
 $zlibVersion = '1.3.2'
 $zlibArchive = Join-Path $projectDir ".tooling\native-src\zlib-$zlibVersion.tar.gz"
-$zlibUrl = "https://zlib.net/zlib-$zlibVersion.tar.gz"
+$zlibUrl = "https://github.com/madler/zlib/releases/download/v$zlibVersion/zlib-$zlibVersion.tar.gz"
 $zlibHash = 'bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16'
 $windowsTar = Join-Path $env:SystemRoot 'System32\tar.exe'
 $windowsTar = if (Test-Path $windowsTar) { $windowsTar } else { throw 'Windows tar.exe is required.' }
@@ -60,6 +60,12 @@ try {
   & $gitBash -lc '"$1" "$2"' -- $scriptPosix $sourcePosix
   if ($LASTEXITCODE -ne 0) { throw 'MiniPro SRAM overlay materialization failed. Git Bash is required.' }
   $relativeSource = '.tooling/' + (Split-Path -Leaf $source)
+
+  # materialize_minipro_sram.sh applies expected-programmer.patch before the
+  # Windows UTF-8 patch. This explicit check prevents a future script change
+  # from silently omitting the same-handle safety guard from Windows builds.
+  & git -C $projectDir apply --check --reverse "--directory=$relativeSource" (Join-Path $projectDir 'third_party\minipro\patches\expected-programmer.patch')
+  if ($LASTEXITCODE -ne 0) { throw 'MiniPro expected-programmer safety patch was not materialized.' }
   & git -C $projectDir apply "--directory=$relativeSource" (Join-Path $projectDir 'native\windows\minipro-utf8-paths.patch')
   if ($LASTEXITCODE -ne 0) { throw 'MiniPro UTF-8 Windows path patch failed.' }
   if (-not (Test-Path $libusbArchive)) { Invoke-WebRequest -Uri $libusbUrl -OutFile $libusbArchive }
@@ -120,6 +126,7 @@ try {
     $bytes = [IO.File]::ReadAllBytes($_.FullName); $offset = [BitConverter]::ToInt32($bytes, 0x3c); $machine = [BitConverter]::ToUInt16($bytes, $offset + 4)
     if ($machine -ne $expectedMachine) { throw ('Unexpected PE architecture in {0}: 0x{1:X4}' -f $_.Name, $machine) }
   }
-  @("target_architecture=$Architecture", "minipro_commit=cae74c0607077d6260b24995f5e4c0d0b66a6a2e", "transport=libusb-winusb", "libusb_version=1.0.29", "libusb_sha256=$libusbHash", "libusb_msvc_patch=libusb-msvc-c5287.patch", "llvm_mingw_version=$toolchainVersion", "llvm_mingw_sha256=$toolchainHash", "llvm_mingw_host=x86_64", "zlib_version=$zlibVersion", "zlib_sha256=$zlibHash", "utf8_path_patch=minipro-utf8-paths.patch") | Set-Content -Encoding utf8 (Join-Path $prefix 'BUILD-MANIFEST.txt')
+  $expectedProgrammerPatchHash = (Get-FileHash -Algorithm SHA256 (Join-Path $projectDir 'third_party\minipro\patches\expected-programmer.patch')).Hash.ToLowerInvariant()
+  @("target_architecture=$Architecture", "minipro_commit=cae74c0607077d6260b24995f5e4c0d0b66a6a2e", "minipro_safety_patch=expected-programmer.patch", "minipro_expected_programmer_patch_sha256=$expectedProgrammerPatchHash", "transport=libusb-winusb", "libusb_version=1.0.29", "libusb_sha256=$libusbHash", "libusb_msvc_patch=libusb-msvc-c5287.patch", "llvm_mingw_version=$toolchainVersion", "llvm_mingw_sha256=$toolchainHash", "llvm_mingw_host=x86_64", "zlib_version=$zlibVersion", "zlib_sha256=$zlibHash", "utf8_path_patch=minipro-utf8-paths.patch") | Set-Content -Encoding utf8 (Join-Path $prefix 'BUILD-MANIFEST.txt')
   Write-Host "Built native Windows $Architecture payload at $prefix"
 } finally { if (Test-Path $source) { Remove-Item -Recurse -Force $source }; if (Test-Path $zlibSource) { Remove-Item -Recurse -Force $zlibSource }; if (Test-Path $libusbSource) { Remove-Item -Recurse -Force $libusbSource } }

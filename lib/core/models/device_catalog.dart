@@ -3,12 +3,15 @@
 import 'dart:collection';
 import 'dart:convert';
 
+import 'programmer_definition.dart';
+
 final class ProgrammerOption {
   const ProgrammerOption({
     required this.id,
     required this.label,
     required this.databaseTypes,
     required this.available,
+    this.definition,
   });
 
   static const tl866cs = ProgrammerOption(
@@ -16,32 +19,46 @@ final class ProgrammerOption {
     label: 'TL866CS',
     databaseTypes: {'INFOIC', 'LOGIC'},
     available: true,
+    definition: ProgrammerDefinitions.tl866cs,
+  );
+
+  static const tl866a = ProgrammerOption(
+    id: 'tl866a',
+    label: 'TL866A',
+    databaseTypes: {'INFOIC', 'LOGIC'},
+    available: true,
+    definition: ProgrammerDefinitions.tl866a,
+  );
+
+  static const tl866iiPlus = ProgrammerOption(
+    id: 'tl866ii-plus',
+    label: 'TL866II Plus',
+    databaseTypes: {'INFOIC2PLUS', 'LOGIC'},
+    available: true,
+    definition: ProgrammerDefinitions.tl866iiPlus,
   );
 
   static const futureOptions = [
-    ProgrammerOption(
-      id: 'tl866ii-plus',
-      label: 'TL866II+',
-      databaseTypes: {'INFOIC2PLUS', 'LOGIC'},
-      available: false,
-    ),
     ProgrammerOption(
       id: 't76',
       label: 'T76',
       databaseTypes: {'INFOICT76'},
       available: false,
+      definition: ProgrammerDefinitions.t76,
     ),
     ProgrammerOption(
       id: 't48',
       label: 'T48',
       databaseTypes: {'INFOIC2PLUS'},
       available: false,
+      definition: ProgrammerDefinitions.t48,
     ),
     ProgrammerOption(
       id: 't56',
       label: 'T56',
       databaseTypes: {'INFOIC2PLUS'},
       available: false,
+      definition: ProgrammerDefinitions.t56,
     ),
   ];
 
@@ -49,6 +66,9 @@ final class ProgrammerOption {
   final String label;
   final Set<String> databaseTypes;
   final bool available;
+
+  /// Null for legacy or caller-defined options which have no typed model.
+  final ProgrammerDefinition? definition;
 }
 
 final class CatalogDevice {
@@ -68,6 +88,8 @@ final class CatalogDevice {
     this.flags,
     this.pinMap,
     this.packageDetails,
+    this.blankValue,
+    this.protocolId,
   });
 
   final String id;
@@ -88,6 +110,13 @@ final class CatalogDevice {
   final String? pinMap;
   final String? packageDetails;
 
+  /// The exact blank byte supplied by minipro's database, when catalog schema
+  /// v2 or later provides it. Legacy v1 assets are readable with null here.
+  final int? blankValue;
+
+  /// Raw minipro protocol ID. Its high bit marks custom protocols.
+  final String? protocolId;
+
   /// One selectable alias, tied back to its comma-delimited source record.
   String get label => alias.isEmpty ? '(unnamed source record)' : alias;
   String get kindLabel => switch (type) {
@@ -103,8 +132,13 @@ final class CatalogDevice {
   };
 
   factory CatalogDevice.fromJsonList(List<Object?> json) {
-    if (json.length != 15) {
+    if (json.length != 15 && json.length != 16 && json.length != 17) {
       throw const FormatException('Malformed catalog record.');
+    }
+    final blankValue = json.length >= 16 ? json[15] as int? : null;
+    final protocolId = json.length == 17 ? json[16] as String? : null;
+    if (blankValue != null && (blankValue < 0 || blankValue > 0xff)) {
+      throw const FormatException('Invalid catalog blank value.');
     }
     return CatalogDevice(
       id: json[0]! as String,
@@ -122,6 +156,8 @@ final class CatalogDevice {
       flags: json[12] as String?,
       pinMap: json[13] as String?,
       packageDetails: json[14] as String?,
+      blankValue: blankValue,
+      protocolId: protocolId,
     );
   }
 }
@@ -135,7 +171,8 @@ final class DeviceCatalog {
 
   factory DeviceCatalog.fromJsonString(String source) {
     final decoded = jsonDecode(source) as Map<String, Object?>;
-    if (decoded['schemaVersion'] != 1) {
+    final schemaVersion = decoded['schemaVersion'];
+    if (schemaVersion != 1 && schemaVersion != 2 && schemaVersion != 3) {
       throw FormatException('Unsupported device catalog schema.');
     }
     final records = (decoded['records']! as List)
@@ -154,22 +191,54 @@ final class DeviceCatalog {
 
   CatalogDevice? byId(String id) => _byId[id];
 
+  /// Retained for TL866CS callers while migration moves to [isUnambiguousAlias].
   bool isUnambiguousTl866Alias(CatalogDevice device) =>
+      isUnambiguousAlias(device, programmer: ProgrammerDefinitions.tl866cs);
+
+  bool isUnambiguousAlias(
+    CatalogDevice device, {
+    required ProgrammerDefinition programmer,
+  }) =>
       records
           .where(
             (record) =>
-                record.database == 'INFOIC' &&
+                // minipro resolves aliases within the raw database before it
+                // applies any INFOIC2PLUS model bits. A masked-out duplicate
+                // could therefore load a different descriptor than the one
+                // presented here, so it must still make this alias unsafe.
+                record.database == device.database &&
                 record.alias.toLowerCase() == device.alias.toLowerCase(),
           )
           .length ==
       1;
 
+  /// Whether this exact catalog record is visible for [programmer].
+  bool supportsDevice(ProgrammerOption programmer, CatalogDevice device) {
+    final definition = programmer.definition;
+    return definition == null
+        ? programmer.databaseTypes.contains(device.database)
+        : supportsDefinition(definition, device);
+  }
+
+  /// Applies model-specific shared-database eligibility rules.
+  bool supportsDefinition(
+    ProgrammerDefinition definition,
+    CatalogDevice device,
+  ) {
+    if (!definition.databaseTypes.contains(device.database)) return false;
+    if (device.database != 'INFOIC2PLUS') return true;
+    final selectedBit = definition.infoic2PlusPinMapBit;
+    final pinMap = _hex(device.pinMap);
+    // INFOIC2PLUS records without a valid model mask are unsafe to infer.
+    if (selectedBit == null || pinMap == null) return false;
+    final restrictions = pinMap & infoic2PlusModelMask;
+    return restrictions == 0 || restrictions & selectedBit != 0;
+  }
+
   List<String> vendorsFor(ProgrammerOption programmer) {
     final values =
         records
-            .where(
-              (record) => programmer.databaseTypes.contains(record.database),
-            )
+            .where((record) => supportsDevice(programmer, record))
             .map((record) => record.vendor)
             .toSet()
             .toList()
@@ -195,7 +264,7 @@ final class DeviceCatalog {
     final result =
         records
             .where((record) {
-              if (!programmer.databaseTypes.contains(record.database)) {
+              if (!supportsDevice(programmer, record)) {
                 return false;
               }
               if (vendor != null && record.vendor != vendor) {
@@ -214,5 +283,14 @@ final class DeviceCatalog {
         ? result.length
         : (start + limit).clamp(start, result.length);
     return List.unmodifiable(result.sublist(start, end));
+  }
+
+  static int? _hex(String? value) {
+    if (value == null || value.isEmpty) return null;
+    final normalized = value.startsWith('0x') || value.startsWith('0X')
+        ? value.substring(2)
+        : value;
+    if (!RegExp(r'^[0-9a-fA-F]+$').hasMatch(normalized)) return null;
+    return int.tryParse(normalized, radix: 16);
   }
 }

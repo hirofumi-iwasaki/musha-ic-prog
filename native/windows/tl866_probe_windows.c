@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Read-only TL866A/CS node and WinUSB binding probe. No device is opened. */
+/* Read-only MiniPro node and WinUSB binding probe. No device is opened. */
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <setupapi.h>
 #include <stdio.h>
 #include <wchar.h>
 
-typedef struct { wchar_t *identity; wchar_t *service; int interface_ready; } tl866_device;
+typedef struct { wchar_t *identity; wchar_t *service; int interface_ready; const char *vendor_id; const char *product_id; } tl866_device;
 
 static void json_string(const wchar_t *value) {
   if (!value) { fputs("\"\"", stdout); return; }
@@ -20,20 +20,29 @@ static void json_string(const wchar_t *value) {
   putchar('"'); HeapFree(GetProcessHeap(), 0, utf8);
 }
 
-static int is_tl866(const wchar_t *ids, DWORD bytes) {
-  const wchar_t prefix[] = L"USB\\VID_04D8&PID_E11C";
-  const size_t prefix_length = (sizeof(prefix) / sizeof(prefix[0])) - 1;
+static const char *minipro_product_id(const wchar_t *ids, DWORD bytes, const char **vendor_id) {
+  static const struct { const wchar_t *prefix; const char *vendor; const char *product; } known[] = {
+    {L"USB\\VID_04D8&PID_E11C", "04d8", "e11c"},
+    {L"USB\\VID_A466&PID_0A53", "a466", "0a53"},
+    {L"USB\\VID_A466&PID_1A86", "a466", "1a86"},
+  };
   const size_t count = bytes / sizeof(*ids);
   for (size_t offset = 0; offset < count && ids[offset];) {
     size_t length = 0;
     while (offset + length < count && ids[offset + length]) ++length;
     if (offset + length == count) return 0; /* Malformed MULTI_SZ. */
-    if (length >= prefix_length &&
-        _wcsnicmp(ids + offset, prefix, prefix_length) == 0 &&
-        (length == prefix_length || ids[offset + prefix_length] == L'&')) return 1;
+    for (size_t known_index = 0; known_index < sizeof(known) / sizeof(known[0]); ++known_index) {
+      const size_t prefix_length = wcslen(known[known_index].prefix);
+      if (length >= prefix_length &&
+          _wcsnicmp(ids + offset, known[known_index].prefix, prefix_length) == 0 &&
+          (length == prefix_length || ids[offset + prefix_length] == L'&')) {
+        *vendor_id = known[known_index].vendor;
+        return known[known_index].product;
+      }
+    }
     offset += length + 1;
   }
-  return 0;
+  return NULL;
 }
 
 static wchar_t *instance_id(HDEVINFO set, SP_DEVINFO_DATA *device) {
@@ -56,7 +65,7 @@ static wchar_t *driver_service(HDEVINFO set, SP_DEVINFO_DATA *device) {
   return value;
 }
 
-static int append_device(tl866_device **items, size_t *count, size_t *capacity, wchar_t *identity, wchar_t *service, int ready) {
+static int append_device(tl866_device **items, size_t *count, size_t *capacity, wchar_t *identity, wchar_t *service, int ready, const char *vendor_id, const char *product_id) {
   if (*count == *capacity) {
     size_t next = *capacity ? *capacity * 2 : 4;
     tl866_device *expanded = *items
@@ -65,7 +74,7 @@ static int append_device(tl866_device **items, size_t *count, size_t *capacity, 
     if (!expanded) return 0;
     *items = expanded; *capacity = next;
   }
-  (*items)[*count] = (tl866_device){ identity, service, ready }; ++*count; return 1;
+  (*items)[*count] = (tl866_device){ identity, service, ready, vendor_id, product_id }; ++*count; return 1;
 }
 
 static void free_devices(tl866_device *items, size_t count) {
@@ -96,11 +105,12 @@ int main(void) {
     }
     wchar_t *ids = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, bytes);
     if (!ids || !SetupDiGetDeviceRegistryPropertyW(usb, &device, SPDRP_HARDWAREID, NULL, (PBYTE)ids, bytes, NULL)) { HeapFree(GetProcessHeap(), 0, ids); goto cleanup; }
-    int tl866 = is_tl866(ids, bytes); HeapFree(GetProcessHeap(), 0, ids);
-    if (!tl866) continue;
+    const char *vendor_id = NULL;
+    const char *product_id = minipro_product_id(ids, bytes, &vendor_id); HeapFree(GetProcessHeap(), 0, ids);
+    if (!product_id) continue;
     wchar_t *identity = instance_id(usb, &device);
     wchar_t *service = driver_service(usb, &device);
-    if (!identity || !service || !append_device(&matches, &match_count, &match_capacity, identity, service, _wcsicmp(service, L"WinUSB") == 0)) {
+    if (!identity || !service || !append_device(&matches, &match_count, &match_capacity, identity, service, _wcsicmp(service, L"WinUSB") == 0, vendor_id, product_id)) {
       HeapFree(GetProcessHeap(), 0, identity); HeapFree(GetProcessHeap(), 0, service); goto cleanup;
     }
   }
@@ -108,7 +118,7 @@ int main(void) {
   printf("{\"count\":%u,\"devices\":[", (unsigned)match_count);
   for (size_t index = 0; index < match_count; ++index) {
     if (index) fputc(',', stdout);
-    fputs("{\"vendorId\":\"04d8\",\"productId\":\"e11c\",\"identity\":", stdout); json_string(matches[index].identity);
+    printf("{\"vendorId\":\"%s\",\"productId\":\"%s\",\"identity\":", matches[index].vendor_id, matches[index].product_id); json_string(matches[index].identity);
     fputs(",\"interfaceReady\":", stdout); fputs(matches[index].interface_ready ? "true" : "false", stdout);
     fputs(",\"driverService\":", stdout); json_string(matches[index].service); fputc('}', stdout);
   }

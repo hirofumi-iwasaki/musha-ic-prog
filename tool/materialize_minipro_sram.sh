@@ -7,6 +7,11 @@ repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 tooling_dir=$repo_dir/.tooling
 output_dir=${1:-"$tooling_dir/minipro-sram"}
 source_archive="$tooling_dir/native-src/minipro-$expected_commit.tar.gz"
+# Fresh checkouts and matching source bundles already contain this exact archive.
+# Use it when the local download cache has not been populated (e.g. CI tests).
+if [ ! -f "$source_archive" ]; then
+    source_archive="$repo_dir/third_party/minipro/source/minipro-$expected_commit.tar.gz"
+fi
 source_archive_sha256='6363acb0b69f6038ff7a64a751bd2b4fa671debde487c83fd4c5c876c95175af'
 
 if [ -L "$tooling_dir" ]; then
@@ -66,6 +71,7 @@ fi
 
 cp "$repo_dir/third_party/minipro/sram/sram_test.c" "$staging_dir/src/sram_test.c"
 cp "$repo_dir/third_party/minipro/sram/sram_test.h" "$staging_dir/src/sram_test.h"
+git -C "$staging_dir" apply "$repo_dir/third_party/minipro/patches/expected-programmer.patch"
 
 if ! grep -q 'src/sram_test.o' "$staging_dir/Makefile"; then
     makefile_tmp="$staging_dir/Makefile.tmp"
@@ -83,6 +89,7 @@ fi
 test ! -e "$staging_dir/.git"
 grep -q 'src/sram_test.o' "$staging_dir/Makefile"
 test -f "$staging_dir/src/sram_test.c"
+git -C "$staging_dir" apply --check --reverse "$repo_dir/third_party/minipro/patches/expected-programmer.patch"
 test -f "$staging_dir/LICENSE"
 mv "$staging_dir" "$output_dir"
 trap - EXIT HUP INT TERM

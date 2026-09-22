@@ -11,6 +11,7 @@ import 'l10n/app_localizations.dart';
 import 'presentation/localized_app.dart';
 import 'presentation/widgets/language_selector.dart';
 import 'core/models/device_catalog.dart';
+import 'core/models/programmer_definition.dart';
 import 'core/models/device_profile.dart';
 import 'infrastructure/catalog/minipro_device_catalog_loader.dart';
 import 'infrastructure/programmers/minipro/minipro_tl866_backend.dart';
@@ -32,6 +33,15 @@ Future<void> main() async {
 void _run(DeviceCatalog catalog, LanguageController language) {
   final controller = ProgrammerController(
     backend: MiniproTl866Backend(),
+    realBackends: {
+      ProgrammerOption.tl866cs.id: MiniproTl866Backend(),
+      ProgrammerOption.tl866a.id: MiniproTl866Backend(
+        programmer: ProgrammerDefinition.tl866a,
+      ),
+      ProgrammerOption.tl866iiPlus.id: MiniproTl866Backend(
+        programmer: ProgrammerDefinition.tl866iiPlus,
+      ),
+    },
     simulationBackend: MockProgrammerBackend(),
     profiles: const [mockEpromProfile],
     catalog: catalog,
@@ -43,7 +53,7 @@ void _run(DeviceCatalog catalog, LanguageController language) {
 Future<void> _connectOnStartup(ProgrammerController controller) async {
   await controller.connectProgrammer();
   debugPrint(
-    'TL866CS connection scan: ${controller.backendStatus}; ${controller.message}',
+    'Programmer connection scan: ${controller.backendStatus}; ${controller.message}',
   );
 }
 

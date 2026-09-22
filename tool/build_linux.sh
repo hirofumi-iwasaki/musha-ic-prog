@@ -39,6 +39,7 @@ tar -xjf "$project_dir/.tooling/native-src/libusb-1.0.29.tar.bz2" -C "$native_so
 source_minipro="$native_sources/minipro-cae74c0607077d6260b24995f5e4c0d0b66a6a2e"; mkdir "$source_minipro"
 tar -xzf "$project_dir/.tooling/native-src/minipro-cae74c0607077d6260b24995f5e4c0d0b66a6a2e.tar.gz" --strip-components=1 -C "$source_minipro"
 cp "$project_dir/third_party/minipro/sram/sram_test.c" "$source_minipro/src/sram_test.c"; cp "$project_dir/third_party/minipro/sram/sram_test.h" "$source_minipro/src/sram_test.h"
+git -C "$source_minipro" apply "$project_dir/third_party/minipro/patches/expected-programmer.patch"
 if ! grep -q 'src/sram_test.o' "$source_minipro/Makefile"; then awk '/^COMMON_OBJECTS=/ {print; print "\t\tsrc/sram_test.o \\"; next} {print}' "$source_minipro/Makefile" > "$source_minipro/Makefile.new"; mv "$source_minipro/Makefile.new" "$source_minipro/Makefile"; fi
 "$flutter_bin" pub run tool/ci/write_distribution_metadata.dart "$distribution" "linux-$architecture" "$flutter_bin"
 "$flutter_bin" pub run tool/ci/write_checksums.dart "$distribution"
