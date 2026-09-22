@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import 'programmer_definition.dart';
+
 enum DeviceKind { memory, logic, sram }
 
 enum ErasureMethod { ultraviolet, electrical, none }
@@ -22,6 +24,7 @@ final class DeviceProfile {
     this.miniproAlias,
     this.miniproDatabase,
     this.expectedMiniproPackage,
+    this.eligibleProgrammers = const {ProgrammerId.tl866cs},
   });
 
   final String stableId;
@@ -46,15 +49,22 @@ final class DeviceProfile {
   final String? miniproDatabase;
   final String? expectedMiniproPackage;
 
+  /// Physical programmer models for which this exact profile was approved.
+  /// A database name alone cannot establish this for shared minipro databases.
+  final Set<ProgrammerId> eligibleProgrammers;
+
   bool get supportsMemoryOperations =>
       kind == DeviceKind.memory && capacityBytes != null;
 
-  bool get isTl866Executable =>
+  bool isExecutableFor(ProgrammerId programmer) =>
       (verified || evaluationAuthorized) &&
-      miniproDatabase == 'INFOIC' &&
       miniproAlias != null &&
       expectedMiniproPackage != null &&
+      eligibleProgrammers.contains(programmer) &&
       supportsMemoryOperations;
+
+  /// Compatibility helper for existing TL866CS-only consumers.
+  bool get isTl866Executable => isExecutableFor(ProgrammerId.tl866cs);
 
   String get displayName => '$manufacturer $partNumber';
 }

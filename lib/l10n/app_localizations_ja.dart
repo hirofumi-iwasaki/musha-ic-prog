@@ -159,7 +159,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get refreshSimulation => 'シミュレーションを更新';
 
   @override
-  String get refreshTl866cs => 'TL866CS を更新';
+  String refreshTl866cs(String programmer) {
+    return '$programmer を更新';
+  }
 
   @override
   String simulationConnected(String model, String firmware) {
@@ -176,13 +178,17 @@ class AppLocalizationsJa extends AppLocalizations {
   String get simulationConnectedOperationInProgress => 'シミュレーション接続済み · 操作中';
 
   @override
-  String get tl866csConnectedOperationInProgress => 'TL866CS 接続済み · 操作中';
+  String tl866csConnectedOperationInProgress(String programmer) {
+    return '$programmer 接続済み · 操作中';
+  }
 
   @override
   String get checkingSimulationConnection => 'シミュレーション接続を確認中…';
 
   @override
-  String get checkingTl866csConnection => 'TL866CS 接続を確認中…';
+  String checkingTl866csConnection(String programmer) {
+    return '$programmer 接続を確認中…';
+  }
 
   @override
   String get simulationDisconnected => 'シミュレーション切断';
@@ -408,11 +414,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get backendSimulation => 'シミュレーション・バックエンド';
 
   @override
-  String get backendNotConnected => 'TL866CS は未接続です';
+  String backendNotConnected(String programmer) {
+    return '$programmer は未接続です';
+  }
 
   @override
-  String backendConnected(Object identifier) {
-    return 'TL866CS 接続済み（$identifier）';
+  String backendConnected(Object identifier, String programmer) {
+    return '$programmer 接続済み（$identifier）';
   }
 
   @override
@@ -434,7 +442,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get inputSizeMismatch => '入力 BIN のサイズは IC 容量と完全に一致している必要があります。';
 
   @override
-  String get profileOutsideScope => 'このデータベースプロファイルは、許可された TL866CS 評価範囲外です。';
+  String profileOutsideScope(String programmer) {
+    return 'このデータベースプロファイルは、許可された $programmer 評価範囲外です。';
+  }
 
   @override
   String get waitBeforeReconnect => '再接続する前に、現在の操作が終わるまで待ってください。';
@@ -443,7 +453,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get checkingSimulation => 'シミュレーション・プログラマーを検索中…';
 
   @override
-  String get checkingTl866 => 'TL866CS が1台接続されているか確認中…';
+  String checkingTl866(String programmer) {
+    return '$programmer が1台接続されているか確認中…';
+  }
 
   @override
   String programmerReady(Object model) {
@@ -457,7 +469,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get simulationSelected => 'シミュレーションデモを選択しました。接続してモックプログラマーを使用してください。';
 
   @override
-  String get realProgrammerSelected => 'TL866CS モードを選択しました。接続状態を更新してください。';
+  String realProgrammerSelected(String programmer) {
+    return '$programmer モードを選択しました。接続状態を更新してください。';
+  }
 
   @override
   String profileSelected(Object profile) {
@@ -482,7 +496,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get operationCouldNotStart => '操作を開始できませんでした。';
 
   @override
-  String get reconnectBeforeOperation => '次の操作の前に TL866CS 接続を更新してください。';
+  String reconnectBeforeOperation(String programmer) {
+    return '次の操作の前に $programmer 接続を更新してください。';
+  }
 
   @override
   String get reading => 'コードメモリを読み取り中です。';
@@ -522,11 +538,14 @@ class AppLocalizationsJa extends AppLocalizations {
   String get operationCancelled => '次のハードウェアコマンドの前に操作を停止しました。';
 
   @override
-  String get identityChanged => 'TL866CS の識別情報が変わりました。操作前に接続を更新してください。';
+  String identityChanged(String programmer) {
+    return '$programmer の識別情報が変わりました。操作前に接続を更新してください。';
+  }
 
   @override
-  String get identityChangedBeforeWrite =>
-      '書き込み前に TL866CS の識別情報が変わりました。書き込みは開始していません。';
+  String identityChangedBeforeWrite(String programmer) {
+    return '書き込み前に $programmer の識別情報が変わりました。書き込みは開始していません。';
+  }
 
   @override
   String get postWriteVerificationFailed => '書き込み後の検証に失敗しました。';
@@ -538,28 +557,37 @@ class AppLocalizationsJa extends AppLocalizations {
   String get technicalFailure => 'プログラマーの操作に失敗しました。技術情報を確認してください。';
 
   @override
-  String get backendUnsupportedProfile => 'このプロファイルは実機 TL866CS 評価用に承認されていません。';
+  String backendUnsupportedProfile(String programmer) {
+    return 'このプロファイルは実機 $programmer 評価用に承認されていません。';
+  }
 
   @override
   String get backendProfileValidationFailed =>
       '選択したデバイスプロファイルを minipro で検証できませんでした。';
 
   @override
-  String get backendDiscoveryFailure => 'TL866CS の接続確認に失敗しました。技術的な詳細を確認してください。';
+  String backendDiscoveryFailure(String programmer) {
+    return '$programmer の接続確認に失敗しました。技術的な詳細を確認してください。';
+  }
 
   @override
-  String get backendWinUsbSetup =>
-      'README.ja.md の Windows 導入手順に従って TL866CS に WinUSB ドライバーを設定し、プログラマーを接続し直してください。';
+  String backendWinUsbSetup(String programmer) {
+    return 'README.ja.md の Windows 導入手順に従って $programmer に WinUSB ドライバーを設定し、プログラマーを接続し直してください。';
+  }
 
   @override
   String get backendUsbAccessDenied =>
       'USB へのアクセスが拒否されました。OS の USB アクセス権限とドライバー設定を確認し、接続し直してください。';
 
   @override
-  String get backendBusy => 'TL866CS は使用中です。他のプログラマー用ソフトを終了し、接続し直してください。';
+  String backendBusy(String programmer) {
+    return '$programmer は使用中です。他のプログラマー用ソフトを終了し、接続し直してください。';
+  }
 
   @override
-  String get backendNotDetected => 'TL866A/CS プログラマーが見つかりませんでした。';
+  String backendNotDetected(String programmer) {
+    return '$programmer プログラマーが見つかりませんでした。';
+  }
 
   @override
   String programmerDatabaseSelected(String programmer) {
@@ -570,8 +598,8 @@ class AppLocalizationsJa extends AppLocalizations {
   String get chooseCatalogDevice => '選択したベンダーとプログラマーのデータベースからデバイスを選択してください。';
 
   @override
-  String unsafeBinProfile(String device) {
-    return '$device は、安全に操作できる raw-BIN 用 TL866CS プロファイルとして扱えません。';
+  String unsafeBinProfile(String device, String programmer) {
+    return '$device は、安全に操作できる raw-BIN 用 $programmer プロファイルとして扱えません。';
   }
 
   @override

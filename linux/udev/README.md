@@ -1,7 +1,8 @@
-# TL866CS USB access on Ubuntu
+# MiniPro programmer USB access on Ubuntu
 
 The portable archive does not install system configuration.  To let the active
-desktop user open a TL866A/CS (`04d8:e11c`) without running the app as root,
+desktop user open a TL866A/CS (`04d8:e11c`) or a device using the shared
+TL866II+/T48/T56 ID (`a466:0a53`) without running the app as root,
 install the included narrowly scoped rule once:
 
 ```sh
@@ -20,7 +21,7 @@ sudo usermod -aG plugdev "$USER"
 ```
 
 The rule is copied from the pinned minipro rule, keeps its GPL-3.0-or-later
-license, and applies only to the TL866A/CS VID/PID. It does not install a
-driver, grant world-writable USB access, or make the programmer usable by a
-remote session. The app's probe only enumerates descriptors; an enumerated
-device can still fail to open if the rule/session setup is missing.
+license, and applies only to the listed MiniPro VID/PID pairs. It does not
+install a driver, grant world-writable USB access, or make a detected model
+supported by the application. The app's probe only enumerates descriptors; an
+enumerated device can still fail to open if the rule/session setup is missing.

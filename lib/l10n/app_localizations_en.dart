@@ -167,7 +167,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get refreshSimulation => 'Refresh simulation';
 
   @override
-  String get refreshTl866cs => 'Refresh TL866CS';
+  String refreshTl866cs(String programmer) {
+    return 'Refresh $programmer';
+  }
 
   @override
   String simulationConnected(String model, String firmware) {
@@ -185,14 +187,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Simulation connected · operation in progress';
 
   @override
-  String get tl866csConnectedOperationInProgress =>
-      'TL866CS connected · operation in progress';
+  String tl866csConnectedOperationInProgress(String programmer) {
+    return '$programmer connected · operation in progress';
+  }
 
   @override
   String get checkingSimulationConnection => 'Checking simulation connection…';
 
   @override
-  String get checkingTl866csConnection => 'Checking TL866CS connection…';
+  String checkingTl866csConnection(String programmer) {
+    return 'Checking $programmer connection…';
+  }
 
   @override
   String get simulationDisconnected => 'Simulation disconnected';
@@ -422,11 +427,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backendSimulation => 'Simulation backend';
 
   @override
-  String get backendNotConnected => 'TL866CS not connected';
+  String backendNotConnected(String programmer) {
+    return '$programmer not connected';
+  }
 
   @override
-  String backendConnected(Object identifier) {
-    return 'TL866CS connected ($identifier)';
+  String backendConnected(Object identifier, String programmer) {
+    return '$programmer connected ($identifier)';
   }
 
   @override
@@ -450,8 +457,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'The input BIN must exactly match the IC capacity.';
 
   @override
-  String get profileOutsideScope =>
-      'This database profile is outside the authorized TL866CS evaluation scope.';
+  String profileOutsideScope(String programmer) {
+    return 'This database profile is outside the authorized $programmer evaluation scope.';
+  }
 
   @override
   String get waitBeforeReconnect =>
@@ -461,7 +469,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get checkingSimulation => 'Looking for the simulation programmer…';
 
   @override
-  String get checkingTl866 => 'Checking one TL866CS connection…';
+  String checkingTl866(String programmer) {
+    return 'Checking one $programmer connection…';
+  }
 
   @override
   String programmerReady(Object model) {
@@ -476,8 +486,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Simulation demo selected. Connect to use the mock programmer.';
 
   @override
-  String get realProgrammerSelected =>
-      'TL866CS mode selected. Refresh connection status.';
+  String realProgrammerSelected(String programmer) {
+    return '$programmer mode selected. Refresh connection status.';
+  }
 
   @override
   String profileSelected(Object profile) {
@@ -504,8 +515,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get operationCouldNotStart => 'Operation could not start.';
 
   @override
-  String get reconnectBeforeOperation =>
-      'Refresh the TL866CS connection before another operation.';
+  String reconnectBeforeOperation(String programmer) {
+    return 'Refresh the $programmer connection before another operation.';
+  }
 
   @override
   String get reading => 'Reading code memory.';
@@ -546,12 +558,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'Operation stopped before the next hardware command.';
 
   @override
-  String get identityChanged =>
-      'TL866CS identity changed; refresh before operating.';
+  String identityChanged(String programmer) {
+    return '$programmer identity changed; refresh before operating.';
+  }
 
   @override
-  String get identityChangedBeforeWrite =>
-      'TL866CS identity changed before writing; no write was started.';
+  String identityChangedBeforeWrite(String programmer) {
+    return '$programmer identity changed before writing; no write was started.';
+  }
 
   @override
   String get postWriteVerificationFailed => 'Post-write verification failed.';
@@ -565,31 +579,37 @@ class AppLocalizationsEn extends AppLocalizations {
       'Programmer operation failed. See technical details.';
 
   @override
-  String get backendUnsupportedProfile =>
-      'This profile is not approved for real TL866CS evaluation.';
+  String backendUnsupportedProfile(String programmer) {
+    return 'This profile is not approved for real $programmer evaluation.';
+  }
 
   @override
   String get backendProfileValidationFailed =>
       'The selected device profile could not be validated by minipro.';
 
   @override
-  String get backendDiscoveryFailure =>
-      'The TL866CS connection check failed. See technical details.';
+  String backendDiscoveryFailure(String programmer) {
+    return 'The $programmer connection check failed. See technical details.';
+  }
 
   @override
-  String get backendWinUsbSetup =>
-      'Set up the WinUSB driver for TL866CS using the Windows installation instructions in README.md, then reconnect the programmer.';
+  String backendWinUsbSetup(String programmer) {
+    return 'Set up the WinUSB driver for $programmer using the Windows installation instructions in README.md, then reconnect the programmer.';
+  }
 
   @override
   String get backendUsbAccessDenied =>
       'USB access was denied. Check the OS USB permissions and driver setup, then reconnect the programmer.';
 
   @override
-  String get backendBusy =>
-      'TL866CS is busy. Close other programmer software, then reconnect it.';
+  String backendBusy(String programmer) {
+    return '$programmer is busy. Close other programmer software, then reconnect it.';
+  }
 
   @override
-  String get backendNotDetected => 'No TL866A/CS programmer was detected.';
+  String backendNotDetected(String programmer) {
+    return 'No $programmer programmer was detected.';
+  }
 
   @override
   String programmerDatabaseSelected(String programmer) {
@@ -601,8 +621,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'Choose a device from the selected vendor and programmer database.';
 
   @override
-  String unsafeBinProfile(String device) {
-    return '$device cannot be represented as a safe raw-BIN TL866CS profile.';
+  String unsafeBinProfile(String device, String programmer) {
+    return '$device cannot be represented as a safe raw-BIN $programmer profile.';
   }
 
   @override

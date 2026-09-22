@@ -119,3 +119,16 @@ The user approved [LOCALIZATION_0.3.0.md](LOCALIZATION_0.3.0.md) and requested i
 ## D33: Catalog keyboard selection
 
 Vendor and full-device dropdowns provide timed case-insensitive prefix navigation, repeated-initial cycling, visible highlight scrolling, explicit Enter confirmation and Escape cancellation. Device text entry retains substring search. Recheck operation locks and catalog membership after popup dismissal. Details: [KEYBOARD_SELECTION_0.3.0.md](KEYBOARD_SELECTION_0.3.0.md).
+
+## D34: v0.4.0 multi-programmer design (2026-09-22)
+
+Design baseline: [MULTI_PROGRAMMER_0.4.0.md](MULTI_PROGRAMMER_0.4.0.md).
+Add TL866II Plus alongside TL866CS through model-specific definitions and a shared minipro backend. Filter INFOIC2PLUS using programmer bits in pin_map; shared USB IDs do not identify the actual model. Keep a single attached minipro-family programmer and verify expected identity within the operation process before IC access. Retain five desktop targets and the existing constrained memory-operation scope. TL866A/T48 are subsequent candidates; T56/T76 require additional experimental-support and external-algorithm evaluation. This records the design proposal, not implementation or hardware acceptance.
+
+## D35: Implement the v0.4.0 baseline (2026-09-22)
+
+The user approved sequential implementation of the design. The first release scope remains CS plus TL866II Plus; subsequent models follow the recorded gates rather than becoming enabled by a shared USB ID. The user has no TL866II Plus/A/T48/T56/T76 test unit, but may purchase T76 later. Continue implementation, fixture/native tests and packaging without claiming physical acceptance for these models. Verification in the same native process is mandatory; absence of the new guard in an older payload must disable operations, not silently fall back.
+
+## D36: TL866A追加（2026-09-22）
+
+ユーザーの追加指示によりv0.4.0にTL866Aを含める。CSと共通のINFOIC/LOGIC、USB IDを使用するが、照会結果と操作ハンドルの機種照合はA/CSを厳密に区別する。直接DIP・byteメモリーの読取り、ブランクチェック、書込み、照合を対象とし、ICSPは含めない。実機未検証。

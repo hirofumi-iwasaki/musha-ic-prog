@@ -2,7 +2,7 @@ name: Desktop build and package
 
 on:
   push:
-    branches: [release/0.3.0]
+    branches: [release/0.4.0]
   pull_request:
   release:
     types: [published]
@@ -65,6 +65,7 @@ jobs:
           flutter analyze
           flutter test
           sh tool/test_sram.sh
+          bash tool/test_programmer_guard.sh
       - name: Analyze and test (Windows)
         if: matrix.platform == 'windows'
         shell: pwsh

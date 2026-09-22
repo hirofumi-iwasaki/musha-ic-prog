@@ -353,8 +353,8 @@ abstract class AppLocalizations {
   /// No description provided for @refreshTl866cs.
   ///
   /// In en, this message translates to:
-  /// **'Refresh TL866CS'**
-  String get refreshTl866cs;
+  /// **'Refresh {programmer}'**
+  String refreshTl866cs(String programmer);
 
   /// Simulation connection summary.
   ///
@@ -383,8 +383,8 @@ abstract class AppLocalizations {
   /// No description provided for @tl866csConnectedOperationInProgress.
   ///
   /// In en, this message translates to:
-  /// **'TL866CS connected · operation in progress'**
-  String get tl866csConnectedOperationInProgress;
+  /// **'{programmer} connected · operation in progress'**
+  String tl866csConnectedOperationInProgress(String programmer);
 
   /// No description provided for @checkingSimulationConnection.
   ///
@@ -395,8 +395,8 @@ abstract class AppLocalizations {
   /// No description provided for @checkingTl866csConnection.
   ///
   /// In en, this message translates to:
-  /// **'Checking TL866CS connection…'**
-  String get checkingTl866csConnection;
+  /// **'Checking {programmer} connection…'**
+  String checkingTl866csConnection(String programmer);
 
   /// No description provided for @simulationDisconnected.
   ///
@@ -797,14 +797,14 @@ abstract class AppLocalizations {
   /// No description provided for @backendNotConnected.
   ///
   /// In en, this message translates to:
-  /// **'TL866CS not connected'**
-  String get backendNotConnected;
+  /// **'{programmer} not connected'**
+  String backendNotConnected(String programmer);
 
   /// No description provided for @backendConnected.
   ///
   /// In en, this message translates to:
-  /// **'TL866CS connected ({identifier})'**
-  String backendConnected(Object identifier);
+  /// **'{programmer} connected ({identifier})'**
+  String backendConnected(Object identifier, String programmer);
 
   /// No description provided for @operationAlreadyRunning.
   ///
@@ -845,8 +845,8 @@ abstract class AppLocalizations {
   /// No description provided for @profileOutsideScope.
   ///
   /// In en, this message translates to:
-  /// **'This database profile is outside the authorized TL866CS evaluation scope.'**
-  String get profileOutsideScope;
+  /// **'This database profile is outside the authorized {programmer} evaluation scope.'**
+  String profileOutsideScope(String programmer);
 
   /// No description provided for @waitBeforeReconnect.
   ///
@@ -863,8 +863,8 @@ abstract class AppLocalizations {
   /// No description provided for @checkingTl866.
   ///
   /// In en, this message translates to:
-  /// **'Checking one TL866CS connection…'**
-  String get checkingTl866;
+  /// **'Checking one {programmer} connection…'**
+  String checkingTl866(String programmer);
 
   /// No description provided for @programmerReady.
   ///
@@ -887,8 +887,8 @@ abstract class AppLocalizations {
   /// No description provided for @realProgrammerSelected.
   ///
   /// In en, this message translates to:
-  /// **'TL866CS mode selected. Refresh connection status.'**
-  String get realProgrammerSelected;
+  /// **'{programmer} mode selected. Refresh connection status.'**
+  String realProgrammerSelected(String programmer);
 
   /// No description provided for @profileSelected.
   ///
@@ -929,8 +929,8 @@ abstract class AppLocalizations {
   /// No description provided for @reconnectBeforeOperation.
   ///
   /// In en, this message translates to:
-  /// **'Refresh the TL866CS connection before another operation.'**
-  String get reconnectBeforeOperation;
+  /// **'Refresh the {programmer} connection before another operation.'**
+  String reconnectBeforeOperation(String programmer);
 
   /// No description provided for @reading.
   ///
@@ -1001,14 +1001,14 @@ abstract class AppLocalizations {
   /// No description provided for @identityChanged.
   ///
   /// In en, this message translates to:
-  /// **'TL866CS identity changed; refresh before operating.'**
-  String get identityChanged;
+  /// **'{programmer} identity changed; refresh before operating.'**
+  String identityChanged(String programmer);
 
   /// No description provided for @identityChangedBeforeWrite.
   ///
   /// In en, this message translates to:
-  /// **'TL866CS identity changed before writing; no write was started.'**
-  String get identityChangedBeforeWrite;
+  /// **'{programmer} identity changed before writing; no write was started.'**
+  String identityChangedBeforeWrite(String programmer);
 
   /// No description provided for @postWriteVerificationFailed.
   ///
@@ -1031,8 +1031,8 @@ abstract class AppLocalizations {
   /// No description provided for @backendUnsupportedProfile.
   ///
   /// In en, this message translates to:
-  /// **'This profile is not approved for real TL866CS evaluation.'**
-  String get backendUnsupportedProfile;
+  /// **'This profile is not approved for real {programmer} evaluation.'**
+  String backendUnsupportedProfile(String programmer);
 
   /// No description provided for @backendProfileValidationFailed.
   ///
@@ -1043,14 +1043,14 @@ abstract class AppLocalizations {
   /// No description provided for @backendDiscoveryFailure.
   ///
   /// In en, this message translates to:
-  /// **'The TL866CS connection check failed. See technical details.'**
-  String get backendDiscoveryFailure;
+  /// **'The {programmer} connection check failed. See technical details.'**
+  String backendDiscoveryFailure(String programmer);
 
   /// No description provided for @backendWinUsbSetup.
   ///
   /// In en, this message translates to:
-  /// **'Set up the WinUSB driver for TL866CS using the Windows installation instructions in README.md, then reconnect the programmer.'**
-  String get backendWinUsbSetup;
+  /// **'Set up the WinUSB driver for {programmer} using the Windows installation instructions in README.md, then reconnect the programmer.'**
+  String backendWinUsbSetup(String programmer);
 
   /// No description provided for @backendUsbAccessDenied.
   ///
@@ -1061,14 +1061,14 @@ abstract class AppLocalizations {
   /// No description provided for @backendBusy.
   ///
   /// In en, this message translates to:
-  /// **'TL866CS is busy. Close other programmer software, then reconnect it.'**
-  String get backendBusy;
+  /// **'{programmer} is busy. Close other programmer software, then reconnect it.'**
+  String backendBusy(String programmer);
 
   /// No description provided for @backendNotDetected.
   ///
   /// In en, this message translates to:
-  /// **'No TL866A/CS programmer was detected.'**
-  String get backendNotDetected;
+  /// **'No {programmer} programmer was detected.'**
+  String backendNotDetected(String programmer);
 
   /// No description provided for @programmerDatabaseSelected.
   ///
@@ -1085,8 +1085,8 @@ abstract class AppLocalizations {
   /// No description provided for @unsafeBinProfile.
   ///
   /// In en, this message translates to:
-  /// **'{device} cannot be represented as a safe raw-BIN TL866CS profile.'**
-  String unsafeBinProfile(String device);
+  /// **'{device} cannot be represented as a safe raw-BIN {programmer} profile.'**
+  String unsafeBinProfile(String device, String programmer);
 
   /// No description provided for @profileEmpiricallyValidated.
   ///

@@ -141,7 +141,7 @@
   "operationInProgressWarning": "Operation in progress — do not touch the programmer, IC or USB cable.",
   "operationInProgressSimulationWarning": "Operation in progress — do not touch the programmer, IC or USB cable. Simulation only.",
   "refreshSimulation": "Refresh simulation",
-  "refreshTl866cs": "Refresh TL866CS",
+  "refreshTl866cs": "Refresh {programmer}",
   "simulationConnected": "Simulation connected · {model} · {firmware}",
   "@simulationConnected": {
     "description": "Simulation connection summary.",
@@ -157,9 +157,9 @@
   "mockProgrammer": "mock programmer",
   "firmwareUnknown": "firmware unknown",
   "simulationConnectedOperationInProgress": "Simulation connected · operation in progress",
-  "tl866csConnectedOperationInProgress": "TL866CS connected · operation in progress",
+  "tl866csConnectedOperationInProgress": "{programmer} connected · operation in progress",
   "checkingSimulationConnection": "Checking simulation connection…",
-  "checkingTl866csConnection": "Checking TL866CS connection…",
+  "checkingTl866csConnection": "Checking {programmer} connection…",
   "simulationDisconnected": "Simulation disconnected",
   "phaseIdle": "Idle",
   "phaseAwaitingConfirmation": "Awaiting confirmation",
@@ -337,11 +337,14 @@
   "viewerBinary": "Binary",
   "viewerAscii": "ASCII",
   "backendSimulation": "Simulation backend",
-  "backendNotConnected": "TL866CS not connected",
-  "backendConnected": "TL866CS connected ({identifier})",
+  "backendNotConnected": "{programmer} not connected",
+  "backendConnected": "{programmer} connected ({identifier})",
   "@backendConnected": {
     "placeholders": {
-      "identifier": {}
+      "identifier": {},
+      "programmer": {
+        "type": "String"
+      }
     }
   },
   "operationAlreadyRunning": "Another operation is already running.",
@@ -350,10 +353,10 @@
   "profileNoMemoryOperations": "The selected profile does not support memory operations.",
   "openBin": "Open a BIN file first.",
   "inputSizeMismatch": "The input BIN must exactly match the IC capacity.",
-  "profileOutsideScope": "This database profile is outside the authorized TL866CS evaluation scope.",
+  "profileOutsideScope": "This database profile is outside the authorized {programmer} evaluation scope.",
   "waitBeforeReconnect": "Wait for the current operation before reconnecting.",
   "checkingSimulation": "Looking for the simulation programmer…",
-  "checkingTl866": "Checking one TL866CS connection…",
+  "checkingTl866": "Checking one {programmer} connection…",
   "programmerReady": "{model} ready.",
   "@programmerReady": {
     "placeholders": {
@@ -362,7 +365,7 @@
   },
   "identityCheckFailed": "Programmer identity check failed.",
   "simulationSelected": "Simulation demo selected. Connect to use the mock programmer.",
-  "realProgrammerSelected": "TL866CS mode selected. Refresh connection status.",
+  "realProgrammerSelected": "{programmer} mode selected. Refresh connection status.",
   "profileSelected": "Selected {profile}.",
   "@profileSelected": {
     "placeholders": {
@@ -382,7 +385,7 @@
   "confirmProgram": "Confirm program to write the immutable input snapshot.",
   "programCancelled": "Program cancelled before writing.",
   "operationCouldNotStart": "Operation could not start.",
-  "reconnectBeforeOperation": "Refresh the TL866CS connection before another operation.",
+  "reconnectBeforeOperation": "Refresh the {programmer} connection before another operation.",
   "reading": "Reading code memory.",
   "blankChecking": "Checking code memory blank state.",
   "programming": "Programming immutable input snapshot.",
@@ -408,18 +411,18 @@
     }
   },
   "operationCancelled": "Operation stopped before the next hardware command.",
-  "identityChanged": "TL866CS identity changed; refresh before operating.",
-  "identityChangedBeforeWrite": "TL866CS identity changed before writing; no write was started.",
+  "identityChanged": "{programmer} identity changed; refresh before operating.",
+  "identityChangedBeforeWrite": "{programmer} identity changed before writing; no write was started.",
   "postWriteVerificationFailed": "Post-write verification failed.",
   "stopAfterWrite": "Stop requested after writing began; verify contents before continuing.",
   "technicalFailure": "Programmer operation failed. See technical details.",
-  "backendUnsupportedProfile": "This profile is not approved for real TL866CS evaluation.",
+  "backendUnsupportedProfile": "This profile is not approved for real {programmer} evaluation.",
   "backendProfileValidationFailed": "The selected device profile could not be validated by minipro.",
-  "backendDiscoveryFailure": "The TL866CS connection check failed. See technical details.",
-  "backendWinUsbSetup": "Set up the WinUSB driver for TL866CS using the Windows installation instructions in README.md, then reconnect the programmer.",
+  "backendDiscoveryFailure": "The {programmer} connection check failed. See technical details.",
+  "backendWinUsbSetup": "Set up the WinUSB driver for {programmer} using the Windows installation instructions in README.md, then reconnect the programmer.",
   "backendUsbAccessDenied": "USB access was denied. Check the OS USB permissions and driver setup, then reconnect the programmer.",
-  "backendBusy": "TL866CS is busy. Close other programmer software, then reconnect it.",
-  "backendNotDetected": "No TL866A/CS programmer was detected.",
+  "backendBusy": "{programmer} is busy. Close other programmer software, then reconnect it.",
+  "backendNotDetected": "No {programmer} programmer was detected.",
   "programmerDatabaseSelected": "Selected the {programmer} device database.",
   "@programmerDatabaseSelected": {
     "placeholders": {
@@ -429,10 +432,13 @@
     }
   },
   "chooseCatalogDevice": "Choose a device from the selected vendor and programmer database.",
-  "unsafeBinProfile": "{device} cannot be represented as a safe raw-BIN TL866CS profile.",
+  "unsafeBinProfile": "{device} cannot be represented as a safe raw-BIN {programmer} profile.",
   "@unsafeBinProfile": {
     "placeholders": {
       "device": {
+        "type": "String"
+      },
+      "programmer": {
         "type": "String"
       }
     }
@@ -449,6 +455,111 @@
   "@profileAuthorizedNotValidated": {
     "placeholders": {
       "device": {
+        "type": "String"
+      }
+    }
+  },
+  "@refreshTl866cs": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@tl866csConnectedOperationInProgress": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@checkingTl866csConnection": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@backendNotConnected": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@profileOutsideScope": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@checkingTl866": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@realProgrammerSelected": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@reconnectBeforeOperation": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@identityChanged": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@identityChangedBeforeWrite": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@backendUnsupportedProfile": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@backendDiscoveryFailure": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@backendWinUsbSetup": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@backendBusy": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@backendNotDetected": {
+    "placeholders": {
+      "programmer": {
         "type": "String"
       }
     }

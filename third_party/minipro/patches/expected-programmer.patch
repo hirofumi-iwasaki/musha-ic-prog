@@ -1,0 +1,200 @@
+--- a/src/minipro.h
++++ b/src/minipro.h
+@@ -328,6 +328,10 @@
+ 	int filter_fuses;
+ 	int filter_locks;
+ 	int filter_uid;
++	char *expected_model;
++	char *expected_identity;
++	char *expected_firmware;
++	uint8_t connection_json;
+ } cmdopts_t;
+ 
+ typedef struct minipro_handle {
+--- a/src/main.c
++++ b/src/main.c
+@@ -101,6 +101,10 @@
+ 	{ "hardware_check", no_argument, NULL, 't' },
+ 	{ "update", required_argument, NULL, 'F' },
+ 	{ "partition", required_argument, NULL, 7 },
++	{ "expected-model", required_argument, NULL, 8 },
++	{ "expected-identity", required_argument, NULL, 9 },
++	{ "expected-firmware", required_argument, NULL, 10 },
++	{ "connection-json", no_argument, NULL, 11 },
+ 	{ "help", no_argument, NULL, 'h' },
+ 	{ NULL, 0, NULL, 0 }
+ };
+@@ -378,8 +382,86 @@
+ 		free(handle);
+ 	}
+ 	exit(EXIT_SUCCESS);
++}
++
++static const char *canonical_model(const minipro_handle_t *handle)
++{
++	switch (handle->version) {
++	case MP_TL866A: return "tl866a";
++	case MP_TL866CS: return "tl866cs";
++	case MP_TL866IIPLUS: return "tl866ii";
++	case MP_T48: return "t48";
++	case MP_T56: return "t56";
++	case MP_T76: return "t76";
++	default: return "unknown";
++	}
++}
++
++static int usable_serial(const minipro_handle_t *handle)
++{
++	if (!handle->serial_number[0])
++		return 0;
++	for (const unsigned char *value = (const unsigned char *)handle->serial_number;
++	     *value; ++value) {
++		if (*value < 0x20 || *value > 0x7e || *value == '"' || *value == '\\')
++			return 0;
++	}
++	return 1;
+ }
+ 
++static int expected_programmer_matches(const minipro_handle_t *handle,
++				       const cmdopts_t *cmdopts)
++{
++	if ((cmdopts->expected_model || cmdopts->expected_identity ||
++	     cmdopts->expected_firmware) &&
++	    (!cmdopts->expected_model || !cmdopts->expected_identity ||
++	     !cmdopts->expected_firmware)) {
++		fprintf(stderr, "Expected model, identity, and firmware must be supplied together.\n");
++		return 0;
++	}
++	if ((cmdopts->expected_model || cmdopts->expected_identity ||
++	     cmdopts->expected_firmware) && handle->status != MP_STATUS_NORMAL) {
++		fprintf(stderr, "Opened programmer is not in normal mode.\n");
++		return 0;
++	}
++	if (cmdopts->expected_model &&
++	    strcasecmp(cmdopts->expected_model, canonical_model(handle))) {
++		fprintf(stderr, "Expected programmer model %s, opened %s.\n",
++			cmdopts->expected_model, canonical_model(handle));
++		return 0;
++	}
++	if (cmdopts->expected_firmware &&
++	    strcmp(cmdopts->expected_firmware, handle->firmware_str)) {
++		fprintf(stderr, "Expected firmware %s, opened %s.\n",
++			cmdopts->expected_firmware, handle->firmware_str);
++		return 0;
++	}
++	if (cmdopts->expected_identity &&
++	    (!usable_serial(handle) ||
++	     strncmp(cmdopts->expected_identity, "serial:", 7) ||
++	     strcmp(cmdopts->expected_identity + 7, handle->serial_number))) {
++		fprintf(stderr, "Expected programmer identity does not match opened handle.\n");
++		return 0;
++	}
++	return 1;
++}
++
++void print_connection_json_and_exit(cmdopts_t *cmdopts)
++{
++	minipro_handle_t *handle = minipro_open(NO_VERBOSE);
++	if (!handle || handle->status != MP_STATUS_NORMAL || !usable_serial(handle)) {
++		fprintf(stderr, "[No uniquely identifiable programmer found]\n");
++		if (handle)
++			minipro_close(handle);
++		exit(EXIT_FAILURE);
++	}
++	printf("{\"schemaVersion\":1,\"model\":\"%s\",\"firmware\":\"%s\",\"serial\":\"%s\",\"identity\":\"serial:%s\"}\n",
++		canonical_model(handle), handle->firmware_str, handle->serial_number,
++		handle->serial_number);
++	minipro_close(handle);
++	exit(EXIT_SUCCESS);
++}
++
+ /* List database devices. (-l and -L */
+ void print_devices_and_exit(cmdopts_t *cmdopts)
+ {
+@@ -792,7 +874,20 @@
+ 			break;
+ 		case 6:
+ 			cmdopts->algo_path = optarg; /* Custom algorithm.xml */
++			break;
++		case 8:
++			cmdopts->expected_model = optarg;
++			break;
++		case 9:
++			cmdopts->expected_identity = optarg;
++			break;
++		case 10:
++			cmdopts->expected_firmware = optarg;
+ 			break;
++		case 11:
++			cmdopts->connection_json = 1;
++			p_func = print_connection_json_and_exit;
++			break;
+ 		case 7: /* --partition (T76 eMMC): user/boot1/boot2/rpmb */
+ 			if (!strcasecmp(optarg, "user"))
+ 				cmdopts->emmc_partition = EMMC_USER;
+@@ -3476,6 +3571,12 @@
+ 		return EXIT_FAILURE;
+ 	handle->cmdopts = &cmdopts;
+ 
++	/* This checks the exact handle that supplied model, firmware, and serial. */
++	if (!expected_programmer_matches(handle, &cmdopts)) {
++		minipro_close(handle);
++		return EXIT_FAILURE;
++	}
++
+ 	/* Exit if bootloader is active */
+ 	minipro_print_system_info(handle);
+ 	if (handle->status == MP_STATUS_BOOTLOADER) {
+--- a/src/usb_nix.c
++++ b/src/usb_nix.c
+@@ -82,17 +82,43 @@
+ /* Open usb device */
+ void *usb_open(uint8_t verbose)
+ {
++	libusb_device **devices = NULL;
++	int device_count = 0;
++	if (libusb_init(NULL) < 0)
++		return NULL;
++	ssize_t listed = libusb_get_device_list(NULL, &devices);
++	if (listed < 0) {
++		libusb_exit(NULL);
++		return NULL;
++	}
++	for (ssize_t index = 0; index < listed; ++index) {
++		struct libusb_device_descriptor descriptor;
++		if (libusb_get_device_descriptor(devices[index], &descriptor) !=
++		    LIBUSB_SUCCESS)
++			continue;
++		if ((descriptor.idVendor == MP_TL866_VID &&
++		     descriptor.idProduct == MP_TL866_PID) ||
++		    (descriptor.idVendor == MP_TL866II_VID &&
++		     descriptor.idProduct == MP_TL866II_PID) ||
++		    (descriptor.idVendor == MP_T76_VID &&
++		     descriptor.idProduct == MP_T76_PID))
++			++device_count;
++	}
++	libusb_free_device_list(devices, 1);
++	if (device_count != 1) {
++		if (verbose)
++			fprintf(stderr, device_count ?
++				"More than one MiniPro programmer found.\n" :
++				"No programmer found.\n");
++		libusb_exit(NULL);
++		return NULL;
++	}
++
+ 	usb_id_t usb_ids[] = { { .vid = MP_TL866_VID, .pid = MP_TL866_PID },
+ 			       { .vid = MP_TL866II_VID, .pid = MP_TL866II_PID },
+ 			       { .vid = MP_T76_VID, .pid = MP_T76_PID } };
+ 
+-	int ret = libusb_init(NULL);
+-	if (ret < 0) {
+-		if (verbose)
+-			fprintf(stderr, "Error initializing libusb: %s\n",
+-				libusb_error_name(ret));
+-		return NULL;
+-	}
++	int ret = LIBUSB_SUCCESS;
+ 
+ 	/* Loop trough each known VID/PID */
+ 	void *usb_handle = NULL;

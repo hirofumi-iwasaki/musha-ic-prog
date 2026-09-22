@@ -8,6 +8,28 @@ Repository: [hirofumi-iwasaki/musha-ic-prog](https://github.com/hirofumi-iwasaki
 
 Version 0.2.0 extends the TL866CS application to five native targets: macOS ARM64, Windows x64/ARM64 and Ubuntu x64/ARM64. The ports are being validated; CI compilation and physical USB acceptance are tracked separately. The Dart / Flutter architecture allows additional programmer backends, such as the XGecu T56, across all supported operating systems. The viewer follows the presentation approach of [Mushagaeshi Binary Editor](https://github.com/hirofumi-iwasaki/musha-bin-editor).
 
+## v0.4.0: TL866A and TL866II Plus
+
+Version 0.4.0 adds **TL866A** and **TL866II Plus** alongside **TL866CS**, using the same bundled minipro backend. Select the connected model before refreshing the connection. Device lists are filtered by the selected model, including model-specific entries in the shared INFOIC2PLUS database. Changing programmers clears the connection and IC selection; input files remain loaded and earlier readouts remain identifiable as previous-target data.
+
+TL866A and TL866II Plus support has not yet been validated on physical hardware. No TL866A or TL866II Plus test unit is currently available. Read, blank-check, program and verify remain restricted to supported direct-DIP byte-oriented memory profiles. ICSP, T48, T56 and T76 remain future work; T56/T76 additionally require external algorithm data that is not bundled. See the [implementation and validation record](.chatgpt/IMPLEMENTATION_0.4.0.md).
+
+### Device catalog and operation scope
+
+| Programmer | Catalog | Listed entries (including aliases) |
+| --- | --- | ---: |
+| TL866CS | INFOIC + LOGIC | 14,497 |
+| TL866A | INFOIC + LOGIC | 14,497 |
+| TL866II Plus | Model-filtered INFOIC2PLUS + LOGIC | 19,255 |
+
+TL866A and TL866CS intentionally share the catalog, as they do in bundled minipro. TL866II Plus excludes entries restricted to T48/T56. Changing the programmer refreshes vendor and device choices and clears the previous selection.
+
+A catalog entry is not a promise of executable support. The list includes logic, MCU, adapter and ICSP entries for browsing; operations are enabled only for eligible direct-DIP, byte-oriented memory profiles. ICSP-only devices, physical SRAM/logic tests and unsupported profiles remain disabled. Before an operation, the app checks the device information and the actual programmer model, serial and firmware again.
+
+Only one minipro-family programmer may be attached, including unsupported models. TL866II Plus, T48 and T56 share USB ID **A466:0A53**; the app checks the actual model and the operation process rechecks its identity before IC access. Selecting TL866II Plus does not enable a T48 or T56.
+
+On Windows, assign **WinUSB to the TL866II Plus device (A466:0A53)** using the installation procedure below. An existing TL866CS assignment (04D8:E11C) does not cover the new device. On Linux, install the updated bundled udev rule, which includes A466:0A53. macOS continues using bundled libusb. These installation paths require model-specific physical validation on each OS.
+
 ## v0.3.0 release status
 
 [v0.3.0](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.3.0) adds automatic Japanese/English UI selection, a persistent manual language selector, and keyboard navigation in vendor and device menus. Open BIN is now beside the byte-width controls above the input pane; each pane has its own address-jump button. Disconnected warnings are consolidated in the bottom status bar, with errors highlighted in red. Programmer operations and USB transport remain unchanged.
@@ -32,7 +54,7 @@ A user reported successfully reading a 27C512 using a connected TL866CS. This is
 
 - macOS 15 or later; Apple Silicon (M1 or later)
 - Windows 11 x64 or ARM64, or Ubuntu 22.04 / 24.04 LTS x64 or ARM64 for the new ports
-- TL866CS connected over USB for IC operations
+- TL866CS, TL866A or TL866II Plus connected over USB for IC operations
 - No Flutter, Homebrew, minipro or libusb installation is needed to run the packaged app
 
 Development uses Flutter 3.47.4, Dart 3.13.3 and Xcode. Hardware connection was checked on macOS 27.0 (26A428), with TL866CS firmware 03.2.86 (0x256). macOS 15 / 26 GUI and hardware acceptance remain separate from CI compilation.
@@ -67,7 +89,7 @@ Select **Open BIN**, or drop one file onto the left **Input BIN** pane. Any file
 
 ### Download and extract
 
-1. Download [v0.3.0](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.3.0):
+1. Download [v0.4.0](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.4.0):
    - Intel/AMD Windows PCs: `musha-ic-prog-windows-x64.zip`.
    - Windows ARM PCs and Windows in Parallels on Apple Silicon: `musha-ic-prog-windows-arm64.zip`.
 2. Extract the entire archive before running the app. Keep `mushagaeshi_ic_programmer.exe`, its DLLs, `data/`, `native/` and `resources/` together. In particular, keep `native/libusb-1.0.dll` beside `native/minipro.exe`.
@@ -77,18 +99,18 @@ If you downloaded v0.2.0 before its Windows transport correction, replace that a
 
 ### Connect TL866CS to Windows
 
-Close other programmer software, including the original MiniPro application. Connect one TL866CS over USB.
+Close other programmer software, including the original MiniPro application. Connect one supported programmer over USB and select its model in the app.
 
 For Parallels on a Mac, assign **MiniPro TL-866 Programmer** to the Windows virtual machine using Parallels' USB device menu or connection prompt. The programmer must be attached to Windows rather than macOS. After restarting or reconnecting, check this assignment again if the app cannot see the device.
 
 ### Assign WinUSB with Zadig
 
-Windows includes the WinUSB driver, but TL866CS may need a one-time assignment to that driver. This installation requires administrator approval; normal use of the app does not.
+Windows includes the WinUSB driver, but the programmer may need a one-time assignment to that driver. This installation requires administrator approval; normal use of the app does not.
 
 1. Download [Zadig from its official website](https://zadig.akeo.ie/). Use the current release; ARM64 WinUSB installation support was added in Zadig 2.8. That support does not eliminate the Windows ARM64 signature restriction described below.
 2. Start Zadig and approve the administrator prompt.
 3. Select **Options > List All Devices**.
-4. Select **MiniPro TL-866 Programmer**, or the corresponding TL866CS entry. Verify **USB ID `04D8 E11C`** before proceeding. Do not select a keyboard, mouse, hub or another USB device. TL866A shares this ID; the application separately checks the model and only enables TL866CS operations.
+4. Select **MiniPro TL-866 Programmer**, or the corresponding TL866CS entry. Verify **USB ID `04D8 E11C` for TL866A/CS, or `A466 0A53` for TL866II Plus** before proceeding. Do not select a keyboard, mouse, hub or another USB device. TL866A shares this ID; the application separately checks the model and requires the connected model to match the selected programmer (TL866CS or TL866A in v0.4.0).
 5. Select **WinUSB** in the replacement-driver field, then **Install Driver** or **Replace Driver**. Do not select libusbK or libusb-win32 for this application.
 6. Once installation succeeds, disconnect and reconnect TL866CS, open the application and refresh the connection.
 
@@ -138,7 +160,7 @@ The probe reads device information without operating the IC.
 | Result | What to check |
 | --- | --- |
 | `count` is `0` | Cable, USB connection and Parallels assignment to Windows. |
-| More than one matching device | Disconnect additional TL866A/CS programmers. |
+| More than one matching device | Disconnect additional minipro-family programmers, including different models. |
 | Empty `driverService` | The driver has not been assigned successfully. Follow the Zadig instructions. |
 | `driverService` is not `WinUSB` | A different driver is bound. Check the selected device and driver in Zadig. |
 | `driverService` is `WinUSB`, `interfaceReady` is `true` | The driver prerequisite is present. The app must still complete its model/firmware check. Close other programmer software and reconnect if opening fails. |
@@ -147,7 +169,7 @@ For a persistent failure, report the Zadig version and error log, Windows versio
 
 ## Ubuntu installation
 
-Download `musha-ic-prog-linux-x64.tar.gz` or `musha-ic-prog-linux-arm64.tar.gz` from [Releases](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.3.0), matching the processor of your Ubuntu system. Extract the complete directory and run `mushagaeshi_ic_programmer` from the extracted bundle.
+Download `musha-ic-prog-linux-x64.tar.gz` or `musha-ic-prog-linux-arm64.tar.gz` from [Releases](https://github.com/hirofumi-iwasaki/musha-ic-prog/releases/tag/v0.4.0), matching the processor of your Ubuntu system. Extract the complete directory and run `mushagaeshi_ic_programmer` from the extracted bundle.
 
 Install the distribution's GTK 3, EGL/OpenGL and LZMA runtime libraries (`libgtk-3-0`, `libegl1`, `libgles2`, `libgl1-mesa-dri`, `liblzma5`). If USB access is denied, follow the included [USB access instructions](linux/udev/README.md). Do not run the application as root.
 
@@ -174,7 +196,7 @@ Open the vendor selector or the device dropdown arrow, then type an initial to j
 
 ## GitHub Actions builds
 
-The **Desktop build and package** workflow runs on pushes to `release/0.3.0`, pull requests, published Releases and manual dispatch. It builds all five targets using native runners and Flutter 3.47.4 pinned to revision `9584c6713b324636289d067944a46fd6b49df14b`. Ubuntu packages are built on 22.04 and also undergo headless launch checks on 24.04.
+The **Desktop build and package** workflow runs on pushes to `release/0.4.0`, pull requests, published Releases and manual dispatch. It builds all five targets using native runners and Flutter 3.47.4 pinned to revision `9584c6713b324636289d067944a46fd6b49df14b`. Ubuntu packages are built on 22.04 and also undergo headless launch checks on 24.04.
 
 | Target | Archive |
 | --- | --- |
@@ -238,7 +260,7 @@ The Flutter suite covers controller behavior, profile mapping, minipro process h
 
 The viewer keeps data in memory with a 64 MiB limit. Binary editing, a Save Readout interface, copying and paged reads are not implemented. Files are compared by offset; insertions and deletions are not realigned.
 
-TL866CS is the only selectable programmer. T56 support, logic IC execution and physical SRAM testing are future work. Windows/Linux hardware validation is recorded separately for each architecture. The SRAM test engine exists as a separate extension foundation. Physical operation availability and empirical device validation are tracked separately.
+Published v0.3.0 supports TL866CS. Version 0.4.0 adds TL866A and TL866II Plus for constrained evaluation, with hardware validation still pending. T48/T56/T76 support, logic IC execution and physical SRAM testing remain future work. Windows/Linux hardware validation is recorded separately for each architecture. The SRAM test engine exists as a separate extension foundation. Physical operation availability and empirical device validation are tracked separately.
 
 ## License
 

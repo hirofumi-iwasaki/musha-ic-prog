@@ -152,6 +152,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
       _readoutSnapshotId,
       _readoutView,
       (id) => _readoutSnapshotId = id,
+      stale: widget.controller.readoutIsPreviousTarget,
     );
     if (widget.controller.needsProgramConfirmation && !_programDialogOpen) {
       _programDialogOpen = true;
@@ -186,13 +187,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                     profile?.capacityBytes?.toString() ?? '—',
                     input?.sha1 ?? '—',
                   )
-                : l10n.programConfirmation(
-                    input?.label ?? '—',
-                    input?.length ?? 0,
-                    _targetLabel(c, profile),
-                    profile?.capacityBytes?.toString() ?? '—',
-                    input?.sha1 ?? '—',
-                  ),
+                : '${c.selectedProgrammer.label}\n\n${l10n.programConfirmation(input?.label ?? '—', input?.length ?? 0, _targetLabel(c, profile), profile?.capacityBytes?.toString() ?? '—', input?.sha1 ?? '—')}',
           ),
           actions: [
             TextButton(
@@ -222,13 +217,18 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
     BinaryImage? image,
     String? cachedId,
     ViewerImage? cached,
-    void Function(String?) setId,
-  ) {
+    void Function(String?) setId, {
+    bool stale = false,
+  }) {
     if (image == null) {
       setId(null);
       return null;
     }
-    if (cachedId == image.snapshotId && cached != null) return cached;
+    if (cachedId == image.snapshotId &&
+        cached != null &&
+        cached.stale == stale) {
+      return cached;
+    }
     setId(image.snapshotId);
     // BinaryImage returns a defensive copy. Hold this one rendering copy until
     // the immutable snapshot generation changes.
@@ -238,7 +238,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
       origin: _origin(image.origin),
       sha1: image.sha1,
       capturedAt: image.createdAt,
-      stale: false,
+      stale: stale,
     );
   }
 
@@ -406,6 +406,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(c.selectedProgrammer.label),
                 Text(l10n.targetAlias(_targetLabel(c, c.selectedProfile))),
                 Text(
                   l10n.capacityBytes(
@@ -555,7 +556,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
               child: Text(
                 c.usingSimulation
                     ? l10n.refreshSimulation
-                    : l10n.refreshTl866cs,
+                    : l10n.refreshTl866cs(c.selectedProgrammer.label),
               ),
             ),
           ],
@@ -597,11 +598,14 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
               ? AppLocalizations.of(context)!
                     .simulationConnectedOperationInProgress
               : AppLocalizations.of(context)!
-                    .tl866csConnectedOperationInProgress,
+                    .tl866csConnectedOperationInProgress(
+                      c.selectedProgrammer.label,
+                    ),
         ConnectionStatus.unknown =>
           c.usingSimulation
               ? AppLocalizations.of(context)!.checkingSimulationConnection
-              : AppLocalizations.of(context)!.checkingTl866csConnection,
+              : AppLocalizations.of(context)!
+                    .checkingTl866csConnection(c.selectedProgrammer.label),
         ConnectionStatus.disconnected =>
           c.usingSimulation
               ? AppLocalizations.of(context)!.simulationDisconnected
@@ -707,7 +711,10 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
   }
 
   String _hardwareEvaluationLabel(DeviceProfile? profile) {
-    if (profile?.isTl866Executable != true) {
+    if (profile?.isExecutableFor(
+          widget.controller.selectedProgrammer.definition!.id,
+        ) !=
+        true) {
       return AppLocalizations.of(context)!
           .unsupportedForAuthorizedHardwareEvaluation;
     }

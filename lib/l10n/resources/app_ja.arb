@@ -126,7 +126,7 @@
   "operationInProgressWarning": "操作中です。プログラマー、IC、USB ケーブルに触れないでください。",
   "operationInProgressSimulationWarning": "操作中です。プログラマー、IC、USB ケーブルに触れないでください。シミュレーションのみです。",
   "refreshSimulation": "シミュレーションを更新",
-  "refreshTl866cs": "TL866CS を更新",
+  "refreshTl866cs": "{programmer} を更新",
   "simulationConnected": "シミュレーション接続済み · {model} · {firmware}",
   "@simulationConnected": {
     "description": "シミュレーションの接続概要。",
@@ -142,9 +142,9 @@
   "mockProgrammer": "模擬プログラマー",
   "firmwareUnknown": "ファームウェア不明",
   "simulationConnectedOperationInProgress": "シミュレーション接続済み · 操作中",
-  "tl866csConnectedOperationInProgress": "TL866CS 接続済み · 操作中",
+  "tl866csConnectedOperationInProgress": "{programmer} 接続済み · 操作中",
   "checkingSimulationConnection": "シミュレーション接続を確認中…",
-  "checkingTl866csConnection": "TL866CS 接続を確認中…",
+  "checkingTl866csConnection": "{programmer} 接続を確認中…",
   "simulationDisconnected": "シミュレーション切断",
   "phaseIdle": "待機中",
   "phaseAwaitingConfirmation": "確認待ち",
@@ -322,11 +322,14 @@
   "viewerBinary": "2進数",
   "viewerAscii": "ASCII",
   "backendSimulation": "シミュレーション・バックエンド",
-  "backendNotConnected": "TL866CS は未接続です",
-  "backendConnected": "TL866CS 接続済み（{identifier}）",
+  "backendNotConnected": "{programmer} は未接続です",
+  "backendConnected": "{programmer} 接続済み（{identifier}）",
   "@backendConnected": {
     "placeholders": {
-      "identifier": {}
+      "identifier": {},
+      "programmer": {
+        "type": "String"
+      }
     }
   },
   "operationAlreadyRunning": "別の操作がすでに実行中です。",
@@ -335,10 +338,10 @@
   "profileNoMemoryOperations": "選択したプロファイルはメモリ操作に対応していません。",
   "openBin": "先に BIN ファイルを開いてください。",
   "inputSizeMismatch": "入力 BIN のサイズは IC 容量と完全に一致している必要があります。",
-  "profileOutsideScope": "このデータベースプロファイルは、許可された TL866CS 評価範囲外です。",
+  "profileOutsideScope": "このデータベースプロファイルは、許可された {programmer} 評価範囲外です。",
   "waitBeforeReconnect": "再接続する前に、現在の操作が終わるまで待ってください。",
   "checkingSimulation": "シミュレーション・プログラマーを検索中…",
-  "checkingTl866": "TL866CS が1台接続されているか確認中…",
+  "checkingTl866": "{programmer} が1台接続されているか確認中…",
   "programmerReady": "{model} の準備ができました。",
   "@programmerReady": {
     "placeholders": {
@@ -347,7 +350,7 @@
   },
   "identityCheckFailed": "プログラマーの識別確認に失敗しました。",
   "simulationSelected": "シミュレーションデモを選択しました。接続してモックプログラマーを使用してください。",
-  "realProgrammerSelected": "TL866CS モードを選択しました。接続状態を更新してください。",
+  "realProgrammerSelected": "{programmer} モードを選択しました。接続状態を更新してください。",
   "profileSelected": "{profile} を選択しました。",
   "@profileSelected": {
     "placeholders": {
@@ -367,7 +370,7 @@
   "confirmProgram": "入力データのスナップショットを書き込む前に、内容を確認してください。",
   "programCancelled": "書き込みを開始する前に取り消しました。",
   "operationCouldNotStart": "操作を開始できませんでした。",
-  "reconnectBeforeOperation": "次の操作の前に TL866CS 接続を更新してください。",
+  "reconnectBeforeOperation": "次の操作の前に {programmer} 接続を更新してください。",
   "reading": "コードメモリを読み取り中です。",
   "blankChecking": "コードメモリのブランク状態を確認中です。",
   "programming": "入力データのスナップショットを書き込み中です。",
@@ -393,18 +396,18 @@
     }
   },
   "operationCancelled": "次のハードウェアコマンドの前に操作を停止しました。",
-  "identityChanged": "TL866CS の識別情報が変わりました。操作前に接続を更新してください。",
-  "identityChangedBeforeWrite": "書き込み前に TL866CS の識別情報が変わりました。書き込みは開始していません。",
+  "identityChanged": "{programmer} の識別情報が変わりました。操作前に接続を更新してください。",
+  "identityChangedBeforeWrite": "書き込み前に {programmer} の識別情報が変わりました。書き込みは開始していません。",
   "postWriteVerificationFailed": "書き込み後の検証に失敗しました。",
   "stopAfterWrite": "書き込み開始後に停止要求がありました。続行前に内容を検証してください。",
   "technicalFailure": "プログラマーの操作に失敗しました。技術情報を確認してください。",
-  "backendUnsupportedProfile": "このプロファイルは実機 TL866CS 評価用に承認されていません。",
+  "backendUnsupportedProfile": "このプロファイルは実機 {programmer} 評価用に承認されていません。",
   "backendProfileValidationFailed": "選択したデバイスプロファイルを minipro で検証できませんでした。",
-  "backendDiscoveryFailure": "TL866CS の接続確認に失敗しました。技術的な詳細を確認してください。",
-  "backendWinUsbSetup": "README.ja.md の Windows 導入手順に従って TL866CS に WinUSB ドライバーを設定し、プログラマーを接続し直してください。",
+  "backendDiscoveryFailure": "{programmer} の接続確認に失敗しました。技術的な詳細を確認してください。",
+  "backendWinUsbSetup": "README.ja.md の Windows 導入手順に従って {programmer} に WinUSB ドライバーを設定し、プログラマーを接続し直してください。",
   "backendUsbAccessDenied": "USB へのアクセスが拒否されました。OS の USB アクセス権限とドライバー設定を確認し、接続し直してください。",
-  "backendBusy": "TL866CS は使用中です。他のプログラマー用ソフトを終了し、接続し直してください。",
-  "backendNotDetected": "TL866A/CS プログラマーが見つかりませんでした。",
+  "backendBusy": "{programmer} は使用中です。他のプログラマー用ソフトを終了し、接続し直してください。",
+  "backendNotDetected": "{programmer} プログラマーが見つかりませんでした。",
   "programmerDatabaseSelected": "{programmer} のデバイスデータベースを選択しました。",
   "@programmerDatabaseSelected": {
     "placeholders": {
@@ -414,10 +417,13 @@
     }
   },
   "chooseCatalogDevice": "選択したベンダーとプログラマーのデータベースからデバイスを選択してください。",
-  "unsafeBinProfile": "{device} は、安全に操作できる raw-BIN 用 TL866CS プロファイルとして扱えません。",
+  "unsafeBinProfile": "{device} は、安全に操作できる raw-BIN 用 {programmer} プロファイルとして扱えません。",
   "@unsafeBinProfile": {
     "placeholders": {
       "device": {
+        "type": "String"
+      },
+      "programmer": {
         "type": "String"
       }
     }
@@ -434,6 +440,111 @@
   "@profileAuthorizedNotValidated": {
     "placeholders": {
       "device": {
+        "type": "String"
+      }
+    }
+  },
+  "@refreshTl866cs": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@tl866csConnectedOperationInProgress": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@checkingTl866csConnection": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@backendNotConnected": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@profileOutsideScope": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@checkingTl866": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@realProgrammerSelected": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@reconnectBeforeOperation": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@identityChanged": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@identityChangedBeforeWrite": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@backendUnsupportedProfile": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@backendDiscoveryFailure": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@backendWinUsbSetup": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@backendBusy": {
+    "placeholders": {
+      "programmer": {
+        "type": "String"
+      }
+    }
+  },
+  "@backendNotDetected": {
+    "placeholders": {
+      "programmer": {
         "type": "String"
       }
     }

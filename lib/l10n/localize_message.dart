@@ -8,13 +8,14 @@ import '../core/models/ui_message.dart';
 /// resolver and remain technical details.
 String localizeMessage(AppLocalizations l10n, UiMessage message) {
   final p = message.parameters;
+  final programmer = "${p['programmer'] ?? 'TL866CS'}";
   switch (message.id) {
     case UiMessageId.backendSimulation:
       return l10n.backendSimulation;
     case UiMessageId.backendNotConnected:
-      return l10n.backendNotConnected;
+      return l10n.backendNotConnected(programmer);
     case UiMessageId.backendConnected:
-      return l10n.backendConnected('${p['identifier'] ?? ''}');
+      return l10n.backendConnected('${p['identifier'] ?? ''}', programmer);
     case UiMessageId.operationAlreadyRunning:
       return l10n.operationAlreadyRunning;
     case UiMessageId.connectOneProgrammer:
@@ -28,13 +29,13 @@ String localizeMessage(AppLocalizations l10n, UiMessage message) {
     case UiMessageId.inputSizeMismatch:
       return l10n.inputSizeMismatch;
     case UiMessageId.profileOutsideScope:
-      return l10n.profileOutsideScope;
+      return l10n.profileOutsideScope(programmer);
     case UiMessageId.waitBeforeReconnect:
       return l10n.waitBeforeReconnect;
     case UiMessageId.checkingSimulation:
       return l10n.checkingSimulation;
     case UiMessageId.checkingTl866:
-      return l10n.checkingTl866;
+      return l10n.checkingTl866(programmer);
     case UiMessageId.programmerReady:
       return l10n.programmerReady('${p['model'] ?? ''}');
     case UiMessageId.identityCheckFailed:
@@ -42,7 +43,7 @@ String localizeMessage(AppLocalizations l10n, UiMessage message) {
     case UiMessageId.simulationSelected:
       return l10n.simulationSelected;
     case UiMessageId.realProgrammerSelected:
-      return l10n.realProgrammerSelected;
+      return l10n.realProgrammerSelected(programmer);
     case UiMessageId.profileSelected:
       return l10n.profileSelected('${p['profile'] ?? ''}');
     case UiMessageId.inputOpened:
@@ -59,7 +60,7 @@ String localizeMessage(AppLocalizations l10n, UiMessage message) {
     case UiMessageId.operationCouldNotStart:
       return l10n.operationCouldNotStart;
     case UiMessageId.reconnectBeforeOperation:
-      return l10n.reconnectBeforeOperation;
+      return l10n.reconnectBeforeOperation(programmer);
     case UiMessageId.reading:
       return l10n.reading;
     case UiMessageId.blankChecking:
@@ -83,9 +84,9 @@ String localizeMessage(AppLocalizations l10n, UiMessage message) {
     case UiMessageId.operationCancelled:
       return l10n.operationCancelled;
     case UiMessageId.identityChanged:
-      return l10n.identityChanged;
+      return l10n.identityChanged(programmer);
     case UiMessageId.identityChangedBeforeWrite:
-      return l10n.identityChangedBeforeWrite;
+      return l10n.identityChangedBeforeWrite(programmer);
     case UiMessageId.postWriteVerificationFailed:
       return l10n.postWriteVerificationFailed;
     case UiMessageId.stopAfterWrite:
@@ -93,25 +94,25 @@ String localizeMessage(AppLocalizations l10n, UiMessage message) {
     case UiMessageId.technicalFailure:
       return l10n.technicalFailure;
     case UiMessageId.backendUnsupportedProfile:
-      return l10n.backendUnsupportedProfile;
+      return l10n.backendUnsupportedProfile(programmer);
     case UiMessageId.backendProfileValidationFailed:
       return l10n.backendProfileValidationFailed;
     case UiMessageId.backendDiscoveryFailure:
-      return l10n.backendDiscoveryFailure;
+      return l10n.backendDiscoveryFailure(programmer);
     case UiMessageId.backendWinUsbSetup:
-      return l10n.backendWinUsbSetup;
+      return l10n.backendWinUsbSetup(programmer);
     case UiMessageId.backendUsbAccessDenied:
       return l10n.backendUsbAccessDenied;
     case UiMessageId.backendBusy:
-      return l10n.backendBusy;
+      return l10n.backendBusy(programmer);
     case UiMessageId.backendNotDetected:
-      return l10n.backendNotDetected;
+      return l10n.backendNotDetected(programmer);
     case UiMessageId.programmerDatabaseSelected:
       return l10n.programmerDatabaseSelected('${p['programmer'] ?? ''}');
     case UiMessageId.chooseCatalogDevice:
       return l10n.chooseCatalogDevice;
     case UiMessageId.unsafeBinProfile:
-      return l10n.unsafeBinProfile('${p['device'] ?? ''}');
+      return l10n.unsafeBinProfile('${p['device'] ?? ''}', programmer);
     case UiMessageId.profileEmpiricallyValidated:
       return l10n.profileEmpiricallyValidated('${p['device'] ?? ''}');
     case UiMessageId.profileAuthorizedNotValidated:

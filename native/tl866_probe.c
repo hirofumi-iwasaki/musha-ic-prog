@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
- * Read-only TL866CS enumerator. It deliberately never calls libusb_open(),
+ * Read-only MiniPro-programmer enumerator. It deliberately never calls libusb_open(),
  * libusb_claim_interface(), or any transfer API, so it cannot address ZIF
  * pins, change programmer state, or read/write an IC.
  */
@@ -8,8 +8,25 @@
 #include <libusb.h>
 #include <stdio.h>
 
-#define TL866_VENDOR_ID 0x04d8
-#define TL866_PRODUCT_ID 0xe11c
+typedef struct {
+  unsigned short vendor_id;
+  unsigned short product_id;
+} minipro_usb_id;
+
+static const minipro_usb_id minipro_usb_ids[] = {
+    {0x04d8, 0xe11c}, /* TL866A/CS */
+    {0xa466, 0x0a53}, /* TL866II+, T48, T56 */
+    {0xa466, 0x1a86}, /* T76 */
+};
+
+static int is_minipro_device(const struct libusb_device_descriptor *descriptor) {
+  for (unsigned index = 0;
+       index < sizeof(minipro_usb_ids) / sizeof(minipro_usb_ids[0]); ++index) {
+    if (descriptor->idVendor == minipro_usb_ids[index].vendor_id &&
+        descriptor->idProduct == minipro_usb_ids[index].product_id) return 1;
+  }
+  return 0;
+}
 
 int main(void) {
   libusb_context *context = NULL;
@@ -36,8 +53,7 @@ int main(void) {
         LIBUSB_SUCCESS) {
       continue;
     }
-    if (descriptor.idVendor != TL866_VENDOR_ID ||
-        descriptor.idProduct != TL866_PRODUCT_ID) {
+    if (!is_minipro_device(&descriptor)) {
       continue;
     }
     matches++;
@@ -48,16 +64,17 @@ int main(void) {
   for (ssize_t index = 0; index < count; index++) {
     struct libusb_device_descriptor descriptor;
     if (libusb_get_device_descriptor(devices[index], &descriptor) !=
-            LIBUSB_SUCCESS ||
-        descriptor.idVendor != TL866_VENDOR_ID ||
-        descriptor.idProduct != TL866_PRODUCT_ID) {
+        LIBUSB_SUCCESS || !is_minipro_device(&descriptor)) {
       continue;
     }
     if (emitted++ != 0) {
       fputc(',', stdout);
     }
-    printf("{\"vendorId\":\"04d8\",\"productId\":\"e11c\","
-           "\"bus\":%u,\"address\":%u}",
+    printf("{\"vendorId\":\"%04x\",\"productId\":\"%04x\","
+           "\"bus\":%u,\"address\":%u,\"identity\":\"usb:%u:%u\"}",
+           descriptor.idVendor, descriptor.idProduct,
+           libusb_get_bus_number(devices[index]),
+           libusb_get_device_address(devices[index]),
            libusb_get_bus_number(devices[index]),
            libusb_get_device_address(devices[index]));
   }

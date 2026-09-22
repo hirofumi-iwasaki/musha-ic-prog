@@ -35,7 +35,7 @@ Future<void> main(List<String> arguments) async {
   }
   records.sort((left, right) => left.id.compareTo(right.id));
   final payload = <String, Object>{
-    'schemaVersion': 1,
+    'schemaVersion': 3,
     'provenance': <String, Object>{
       'generator': 'tool/generate_device_catalog.dart',
       'upstreamCommit': _upstreamCommit,
@@ -110,9 +110,11 @@ List<CatalogRecord> parseMiniproDatabase(String sourceId, String xml) {
               type: ic.getAttribute('type') ?? '',
               codeMemorySize: ic.getAttribute('code_memory_size'),
               pins: ic.getAttribute('pins'),
-            flags: ic.getAttribute('flags'),
-            pinMap: ic.getAttribute('pin_map'),
-            packageDetails: ic.getAttribute('package_details'),
+              flags: ic.getAttribute('flags'),
+              pinMap: ic.getAttribute('pin_map'),
+              packageDetails: ic.getAttribute('package_details'),
+              blankValue: _blankValue(ic.getAttribute('blank_value')),
+              protocolId: ic.getAttribute('protocol_id'),
             ),
           );
         }
@@ -120,6 +122,21 @@ List<CatalogRecord> parseMiniproDatabase(String sourceId, String xml) {
     }
   }
   return records;
+}
+
+/// minipro initializes an absent blank_value attribute to 0xff. Preserve that
+/// pinned-source behavior in the generated asset, but reject malformed or
+/// wider values instead of allowing a catalog consumer to infer one.
+int _blankValue(String? source) {
+  if (source == null) return 0xff;
+  final normalized = source.startsWith('0x') || source.startsWith('0X')
+      ? source.substring(2)
+      : source;
+  final value = int.tryParse(normalized, radix: 16);
+  if (value == null || value < 0 || value > 0xff) {
+    throw FormatException('Invalid blank_value: $source');
+  }
+  return value;
 }
 
 final class CatalogSource {
@@ -160,6 +177,8 @@ final class CatalogRecord {
     this.flags,
     this.pinMap,
     this.packageDetails,
+    required this.blankValue,
+    this.protocolId,
   });
 
   final String id;
@@ -177,9 +196,11 @@ final class CatalogRecord {
   final String? flags;
   final String? pinMap;
   final String? packageDetails;
+  final int blankValue;
+  final String? protocolId;
 
   /// Positional encoding keeps the full alias-expanded catalog practical as an
-  /// offline Flutter asset. Field order is defined by schemaVersion 1.
+  /// offline Flutter asset. Field order is defined by schemaVersion 3.
   List<Object?> toJson() => [
     id,
     sourceId,
@@ -196,5 +217,7 @@ final class CatalogRecord {
     flags,
     pinMap,
     packageDetails,
+    blankValue,
+    protocolId,
   ];
 }

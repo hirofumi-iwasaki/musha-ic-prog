@@ -9,6 +9,7 @@ import 'package:mushagaeshi_ic_programmer/core/models/binary_image.dart';
 import 'package:mushagaeshi_ic_programmer/core/models/device_profile.dart';
 import 'package:mushagaeshi_ic_programmer/core/models/operation.dart';
 import 'package:mushagaeshi_ic_programmer/core/models/programmer.dart';
+import 'package:mushagaeshi_ic_programmer/core/models/programmer_definition.dart';
 import 'package:mushagaeshi_ic_programmer/infrastructure/programmers/minipro/minipro_tl866_backend.dart';
 import 'package:mushagaeshi_ic_programmer/infrastructure/programmers/minipro/process_runner.dart';
 
@@ -68,6 +69,9 @@ void main() {
         ),
         _FakeProcess('', err: 'tl866a: TL866CS'),
         _FakeProcess('Found TL866CS 03.2.86 (0x256)'),
+        _FakeProcess(
+          '{"schemaVersion":1,"model":"tl866cs","firmware":"03.2.86","identity":"serial:fixture"}',
+        ),
       ]);
       final backend = MiniproTl866Backend(
         paths: MiniproBundlePaths(
@@ -83,7 +87,7 @@ void main() {
       expect(result, hasLength(1));
       expect(result.single.identifier, 'usb-1-2');
       expect(result.single.firmware, '03.2.86 0x256');
-      expect(runner.calls, hasLength(3));
+      expect(runner.calls, hasLength(4));
       expect(runner.calls[1], contains('-k'));
       expect(
         runner.calls[2],
@@ -95,6 +99,7 @@ void main() {
           '-V',
         ]),
       );
+      expect(runner.calls[3], contains('--connection-json'));
     },
   );
 
@@ -122,6 +127,184 @@ void main() {
       );
       expect(await backend.scan(), isEmpty);
       expect(backend.discoveryReason, contains('More than one'));
+      expect(runner.calls, hasLength(1));
+    },
+  );
+
+  test('scan accepts TL866II Plus only after -k and firmware agree', () async {
+    final root = await _bundle();
+    addTearDown(() => root.delete(recursive: true));
+    final runner = _FakeRunner([
+      _FakeProcess(
+        '{"count":1,"devices":[{"vendorId":"a466","productId":"0a53","bus":1,"address":2}]}',
+      ),
+      _FakeProcess('tl866ii: TL866II+'),
+      _FakeProcess('Found TL866II+ 04.1.1 (0x401)'),
+      _FakeProcess(
+        '{"schemaVersion":1,"model":"tl866ii","firmware":"04.1.1","identity":"serial:fixture-ii"}',
+      ),
+    ]);
+    final backend = MiniproTl866Backend(
+      programmer: ProgrammerDefinition.tl866iiPlus,
+      paths: MiniproBundlePaths(
+        executable: '${root.path}/minipro',
+        probe: '${root.path}/probe',
+        infoic: '${root.path}/infoic.xml',
+        logicic: '${root.path}/logicic.xml',
+      ),
+      runner: runner,
+      operatingSystem: _descriptorProbePlatform,
+    );
+
+    final result = await backend.scan();
+    expect(result, hasLength(1));
+    expect(result.single.backendId, 'minipro-tl866iiPlus');
+    expect(result.single.model, 'TL866II Plus');
+    expect(result.single.firmware, '04.1.1 0x401');
+  });
+
+  test('scan accepts TL866A only after exact model and guard agree', () async {
+    final root = await _bundle();
+    addTearDown(() => root.delete(recursive: true));
+    final runner = _FakeRunner([
+      _FakeProcess(
+        '{"count":1,"devices":[{"vendorId":"04d8","productId":"e11c","bus":1,"address":2}]}',
+      ),
+      _FakeProcess('tl866a: TL866A'),
+      _FakeProcess('Found TL866A 03.2.86 (0x256)'),
+      _FakeProcess(
+        '{"schemaVersion":1,"model":"tl866a","firmware":"03.2.86","identity":"serial:fixture-a"}',
+      ),
+    ]);
+    final backend = MiniproTl866Backend(
+      programmer: ProgrammerDefinition.tl866a,
+      paths: MiniproBundlePaths(
+        executable: '${root.path}/minipro',
+        probe: '${root.path}/probe',
+        infoic: '${root.path}/infoic.xml',
+        logicic: '${root.path}/logicic.xml',
+      ),
+      runner: runner,
+      operatingSystem: _descriptorProbePlatform,
+    );
+
+    final result = await backend.scan();
+    expect(result, hasLength(1));
+    expect(result.single.backendId, 'minipro-tl866a');
+    expect(result.single.model, 'TL866A');
+    expect(result.single.sameHandleIdentity, 'serial:fixture-a');
+    expect(runner.calls[3], contains('--connection-json'));
+  });
+
+  test('TL866A refuses a TL866CS reported by the shared selector', () async {
+    final root = await _bundle();
+    addTearDown(() => root.delete(recursive: true));
+    final runner = _FakeRunner([
+      _FakeProcess(
+        '{"count":1,"devices":[{"vendorId":"04d8","productId":"e11c","bus":1,"address":2}]}',
+      ),
+      _FakeProcess('tl866a: TL866CS'),
+    ]);
+    final backend = MiniproTl866Backend(
+      programmer: ProgrammerDefinition.tl866a,
+      paths: MiniproBundlePaths(
+        executable: '${root.path}/minipro',
+        probe: '${root.path}/probe',
+        infoic: '${root.path}/infoic.xml',
+        logicic: '${root.path}/logicic.xml',
+      ),
+      runner: runner,
+      operatingSystem: _descriptorProbePlatform,
+    );
+
+    expect(await backend.scan(), isEmpty);
+    expect(
+      backend.discoveryReason,
+      contains('model and firmware check failed'),
+    );
+    expect(runner.calls, hasLength(2));
+  });
+
+  test('TL866CS refuses a TL866A reported by the shared selector', () async {
+    final root = await _bundle();
+    addTearDown(() => root.delete(recursive: true));
+    final runner = _FakeRunner([
+      _FakeProcess(
+        '{"count":1,"devices":[{"vendorId":"04d8","productId":"e11c","bus":1,"address":2}]}',
+      ),
+      _FakeProcess('tl866a: TL866A'),
+    ]);
+    final backend = MiniproTl866Backend(
+      paths: MiniproBundlePaths(
+        executable: '${root.path}/minipro',
+        probe: '${root.path}/probe',
+        infoic: '${root.path}/infoic.xml',
+        logicic: '${root.path}/logicic.xml',
+      ),
+      runner: runner,
+      operatingSystem: _descriptorProbePlatform,
+    );
+
+    expect(await backend.scan(), isEmpty);
+    expect(
+      backend.discoveryReason,
+      contains('model and firmware check failed'),
+    );
+    expect(runner.calls, hasLength(2));
+  });
+
+  test('scan rejects a T48 on the TL866II Plus shared USB ID', () async {
+    final root = await _bundle();
+    addTearDown(() => root.delete(recursive: true));
+    final runner = _FakeRunner([
+      _FakeProcess(
+        '{"count":1,"devices":[{"vendorId":"a466","productId":"0a53","bus":1,"address":2}]}',
+      ),
+      _FakeProcess('t48: T48'),
+    ]);
+    final backend = MiniproTl866Backend(
+      programmer: ProgrammerDefinition.tl866iiPlus,
+      paths: MiniproBundlePaths(
+        executable: '${root.path}/minipro',
+        probe: '${root.path}/probe',
+        infoic: '${root.path}/infoic.xml',
+        logicic: '${root.path}/logicic.xml',
+      ),
+      runner: runner,
+      operatingSystem: _descriptorProbePlatform,
+    );
+
+    expect(await backend.scan(), isEmpty);
+    expect(
+      backend.discoveryReason,
+      contains('model and firmware check failed'),
+    );
+    expect(runner.calls, hasLength(2));
+  });
+
+  test(
+    'scan rejects TL866II Plus USB hardware when configured for CS',
+    () async {
+      final root = await _bundle();
+      addTearDown(() => root.delete(recursive: true));
+      final runner = _FakeRunner([
+        _FakeProcess(
+          '{"count":1,"devices":[{"vendorId":"a466","productId":"0a53","bus":1,"address":2}]}',
+        ),
+      ]);
+      final backend = MiniproTl866Backend(
+        paths: MiniproBundlePaths(
+          executable: '${root.path}/minipro',
+          probe: '${root.path}/probe',
+          infoic: '${root.path}/infoic.xml',
+          logicic: '${root.path}/logicic.xml',
+        ),
+        runner: runner,
+        operatingSystem: _descriptorProbePlatform,
+      );
+
+      expect(await backend.scan(), isEmpty);
+      expect(backend.discoveryReason, contains('different or unsupported'));
       expect(runner.calls, hasLength(1));
     },
   );
@@ -164,6 +347,167 @@ void main() {
     expect(caps.canRead, isFalse);
     expect(caps.reason, contains('not approved'));
     expect(runner.calls, isEmpty);
+  });
+
+  test(
+    'TL866II Plus validates an INFOIC2PLUS alias with its q profile',
+    () async {
+      final root = await _bundle();
+      addTearDown(() => root.delete(recursive: true));
+      final runner = _FakeRunner([
+        _FakeProcess(
+          'Name: TEST2\nMemory: 4 Bytes\nPackage: DIP28\nAvailable on: TL866II',
+        ),
+      ]);
+      final backend = MiniproTl866Backend(
+        programmer: ProgrammerDefinition.tl866iiPlus,
+        paths: MiniproBundlePaths(
+          executable: '${root.path}/minipro',
+          probe: '${root.path}/probe',
+          infoic: '${root.path}/infoic.xml',
+          logicic: '${root.path}/logicic.xml',
+        ),
+        runner: runner,
+        operatingSystem: _descriptorProbePlatform,
+      );
+      const connection = ProgrammerConnection(
+        backendId: 'minipro-tl866iiPlus',
+        model: 'TL866II Plus',
+        identifier: 'usb-1-2',
+        firmware: '04.1.1 0x401',
+        generation: 1,
+        sameHandleIdentity: 'serial:fixture-ii',
+      );
+      const profile = DeviceProfile(
+        stableId: 'ii-approved',
+        manufacturer: 'Test',
+        partNumber: 'TEST2',
+        packageName: 'DIP28',
+        kind: DeviceKind.memory,
+        capacityBytes: 4,
+        socketPlacement: 'test',
+        evaluationAuthorized: true,
+        miniproAlias: 'TEST2',
+        miniproDatabase: 'INFOIC2PLUS',
+        expectedMiniproPackage: 'DIP28',
+        eligibleProgrammers: {ProgrammerId.tl866iiPlus},
+      );
+
+      final caps = await backend.capabilities(connection, profile);
+      expect(caps.canRead, isTrue);
+      expect(
+        runner.calls.single,
+        containsAll(['-q', 'tl866ii', '-d', 'TEST2']),
+      );
+    },
+  );
+
+  test('TL866A and TL866CS refuse profiles for the other model', () async {
+    final root = await _bundle();
+    addTearDown(() => root.delete(recursive: true));
+    const profile = DeviceProfile(
+      stableId: 'a-approved',
+      manufacturer: 'Test',
+      partNumber: 'TESTA',
+      packageName: 'DIP28',
+      kind: DeviceKind.memory,
+      capacityBytes: 4,
+      socketPlacement: 'test',
+      evaluationAuthorized: true,
+      miniproAlias: 'TESTA',
+      miniproDatabase: 'INFOIC',
+      expectedMiniproPackage: 'DIP28',
+      eligibleProgrammers: {ProgrammerId.tl866a, ProgrammerId.tl866cs},
+    );
+    final aRunner = _FakeRunner([
+      _FakeProcess(
+        'Name: TESTA\\nMemory: 4 Bytes\\nPackage: DIP28\\nAvailable on: TL866CS',
+      ),
+    ]);
+    final csRunner = _FakeRunner([
+      _FakeProcess(
+        'Name: TESTA\\nMemory: 4 Bytes\\nPackage: DIP28\\nAvailable on: TL866A',
+      ),
+    ]);
+    final paths = MiniproBundlePaths(
+      executable: '${root.path}/minipro',
+      probe: '${root.path}/probe',
+      infoic: '${root.path}/infoic.xml',
+      logicic: '${root.path}/logicic.xml',
+    );
+    final aBackend = MiniproTl866Backend(
+      programmer: ProgrammerDefinition.tl866a,
+      paths: paths,
+      runner: aRunner,
+      operatingSystem: _descriptorProbePlatform,
+    );
+    final csBackend = MiniproTl866Backend(
+      paths: paths,
+      runner: csRunner,
+      operatingSystem: _descriptorProbePlatform,
+    );
+    const aConnection = ProgrammerConnection(
+      backendId: 'minipro-tl866a',
+      model: 'TL866A',
+      identifier: 'usb-1-2',
+      firmware: '03.2.86 0x256',
+      generation: 1,
+      sameHandleIdentity: 'serial:fixture-a',
+    );
+
+    final aCaps = await aBackend.capabilities(aConnection, profile);
+    final csCaps = await csBackend.capabilities(_fixtureConnection, profile);
+    expect(aCaps.canRead, isFalse);
+    expect(aCaps.reason, contains('could not resolve'));
+    expect(csCaps.canRead, isFalse);
+    expect(csCaps.reason, contains('could not resolve'));
+  });
+
+  test('TL866A accepts a profile listed for TL866A/CS', () async {
+    final root = await _bundle();
+    addTearDown(() => root.delete(recursive: true));
+    final runner = _FakeRunner([
+      _FakeProcess(
+        'Name: TESTA\nMemory: 4 Bytes\nPackage: DIP28\nAvailable on: TL866A/CS',
+      ),
+    ]);
+    final backend = MiniproTl866Backend(
+      programmer: ProgrammerDefinition.tl866a,
+      paths: MiniproBundlePaths(
+        executable: '${root.path}/minipro',
+        probe: '${root.path}/probe',
+        infoic: '${root.path}/infoic.xml',
+        logicic: '${root.path}/logicic.xml',
+      ),
+      runner: runner,
+      operatingSystem: _descriptorProbePlatform,
+    );
+    const connection = ProgrammerConnection(
+      backendId: 'minipro-tl866a',
+      model: 'TL866A',
+      identifier: 'usb-1-2',
+      firmware: '03.2.86 0x256',
+      generation: 1,
+      sameHandleIdentity: 'serial:fixture-a',
+    );
+    const profile = DeviceProfile(
+      stableId: 'a-shared',
+      manufacturer: 'Test',
+      partNumber: 'TESTA',
+      packageName: 'DIP28',
+      kind: DeviceKind.memory,
+      capacityBytes: 4,
+      socketPlacement: 'test',
+      evaluationAuthorized: true,
+      miniproAlias: 'TESTA',
+      miniproDatabase: 'INFOIC',
+      expectedMiniproPackage: 'DIP28',
+      eligibleProgrammers: {ProgrammerId.tl866a},
+    );
+
+    final caps = await backend.capabilities(connection, profile);
+    expect(caps.canRead, isTrue);
+    expect(runner.calls.single, containsAll(['-q', 'tl866a', '-d', 'TESTA']));
   });
   group('native payload locator', () {
     test('preserves the macOS app bundle layout', () {
@@ -214,6 +558,9 @@ void main() {
       ),
       _FakeProcess('', err: 'tl866a: TL866CS'),
       _FakeProcess('Found TL866CS 03.2.86 (0x256)'),
+      _FakeProcess(
+        '{"schemaVersion":1,"model":"tl866cs","firmware":"03.2.86","identity":"serial:fixture"}',
+      ),
     ]);
     final backend = MiniproTl866Backend(
       paths: MiniproBundlePaths(
@@ -367,6 +714,7 @@ const _fixtureConnection = ProgrammerConnection(
   identifier: 'usb-1-2',
   firmware: '03.2.86 0x256',
   generation: 1,
+  sameHandleIdentity: 'serial:fixture',
 );
 
 const _approvedProfile = DeviceProfile(
@@ -397,6 +745,11 @@ Future<_FakeProcess> _identityOrValidation(
   }
   if (args.contains('-k')) return _FakeProcess('', err: 'tl866a: TL866CS');
   if (args.contains('-V')) return _FakeProcess('Found TL866CS 03.2.86 (0x256)');
+  if (args.contains('--connection-json')) {
+    return _FakeProcess(
+      '{"schemaVersion":1,"model":"tl866cs","firmware":"03.2.86","identity":"serial:fixture"}',
+    );
+  }
   if (args.contains('-d')) {
     return _FakeProcess(
       'Name: TEST27\nMemory: 4 Bytes\nPackage: DIP28\nAvailable on: TL866A/CS',
@@ -448,6 +801,115 @@ Future<OperationResult> _executeScripted(
 }
 
 void operationContractTests() {
+  test(
+    'TL866A read uses its guarded native model and refuses CS-only profiles',
+    () async {
+      final root = await _bundle();
+      addTearDown(() => root.delete(recursive: true));
+      final runner = _ScriptedRunner((args) async {
+        if (args.isEmpty) {
+          return _FakeProcess(
+            '{"count":1,"devices":[{"vendorId":"04d8","productId":"e11c","bus":1,"address":2}]}',
+          );
+        }
+        if (args.contains('-k')) return _FakeProcess('tl866a: TL866A');
+        if (args.contains('-V')) {
+          return _FakeProcess('Found TL866A 03.2.86 (0x256)');
+        }
+        if (args.contains('--connection-json')) {
+          return _FakeProcess(
+            '{"schemaVersion":1,"model":"tl866a","firmware":"03.2.86","identity":"serial:fixture-a"}',
+          );
+        }
+        if (args.contains('-d')) {
+          return _FakeProcess(
+            'Name: TESTA\nMemory: 4 Bytes\nPackage: DIP28\nAvailable on: TL866A/CS',
+          );
+        }
+        if (args.contains('-r')) {
+          await File(args.last).writeAsBytes([1, 2, 3, 4]);
+          return _FakeProcess('read');
+        }
+        throw StateError('Unexpected minipro arguments: $args');
+      });
+      final backend = MiniproTl866Backend(
+        programmer: ProgrammerDefinition.tl866a,
+        paths: MiniproBundlePaths(
+          executable: '${root.path}/minipro',
+          probe: '${root.path}/probe',
+          infoic: '${root.path}/infoic.xml',
+          logicic: '${root.path}/logicic.xml',
+        ),
+        runner: runner,
+        operatingSystem: _descriptorProbePlatform,
+      );
+      const connection = ProgrammerConnection(
+        backendId: 'minipro-tl866a',
+        model: 'TL866A',
+        identifier: 'usb-1-2',
+        firmware: '03.2.86 0x256',
+        generation: 1,
+        sameHandleIdentity: 'serial:fixture-a',
+      );
+      const aProfile = DeviceProfile(
+        stableId: 'test-a',
+        manufacturer: 'Test',
+        partNumber: 'TESTA',
+        packageName: 'DIP28',
+        kind: DeviceKind.memory,
+        capacityBytes: 4,
+        socketPlacement: 'test',
+        evaluationAuthorized: true,
+        miniproAlias: 'TESTA',
+        miniproDatabase: 'INFOIC',
+        expectedMiniproPackage: 'DIP28',
+        eligibleProgrammers: {ProgrammerId.tl866a},
+      );
+
+      final read = await backend
+          .execute(
+            const OperationPlan(
+              operationId: 'read-a',
+              kind: OperationKind.read,
+              connection: connection,
+              profile: aProfile,
+            ),
+          )
+          .completed;
+      expect(read.succeeded, isTrue);
+      final command = runner.calls.singleWhere((call) => call.contains('-r'));
+      expect(
+        command,
+        containsAll([
+          '--expected-model',
+          'tl866a',
+          '--expected-identity',
+          'serial:fixture-a',
+          '--expected-firmware',
+          '03.2.86',
+        ]),
+      );
+
+      const csOnlyProfile = DeviceProfile(
+        stableId: 'test-cs-only',
+        manufacturer: 'Test',
+        partNumber: 'TESTCS',
+        packageName: 'DIP28',
+        kind: DeviceKind.memory,
+        capacityBytes: 4,
+        socketPlacement: 'test',
+        evaluationAuthorized: true,
+        miniproAlias: 'TESTCS',
+        miniproDatabase: 'INFOIC',
+        expectedMiniproPackage: 'DIP28',
+        eligibleProgrammers: {ProgrammerId.tl866cs},
+      );
+      final rejected = await backend.capabilities(connection, csOnlyProfile);
+      expect(rejected.canRead, isFalse);
+      expect(rejected.reason, contains('not approved'));
+    },
+  );
+
   test('read accepts exact size and rejects partial output', () async {
     final root = await _bundle();
     addTearDown(() => root.delete(recursive: true));
@@ -504,7 +966,22 @@ void operationContractTests() {
       expect(result.succeeded, isTrue);
       expect(result.image!.origin, BinaryImageOrigin.postWriteVerification);
       final write = runner.calls.singleWhere((call) => call.contains('-w'));
-      expect(write, containsAll(['-e', '-w', '-c', 'code']));
+      expect(
+        write,
+        containsAll([
+          '-e',
+          '-w',
+          '-c',
+          'code',
+          '--expected-model',
+          'tl866cs',
+          '--expected-identity',
+          'serial:fixture',
+          '--expected-firmware',
+          '03.2.86',
+        ]),
+      );
+      expect(result.image!.label, 'TL866CS TEST27 readout');
       expect(written, [1, 2, 3, 4]);
       expect(await File(write.last).exists(), isFalse);
     },

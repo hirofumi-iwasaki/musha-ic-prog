@@ -14,22 +14,27 @@ import '../../core/models/ui_message.dart';
 import '../../core/policies/operation_policy.dart';
 import '../../core/ports/programmer_backend.dart';
 
-/// Presentation-facing state holder. Hardware backends remain mock-only in M1.
+/// Presentation-facing state holder with one active programmer backend.
 final class ProgrammerController extends ChangeNotifier {
   ProgrammerController({
     required ProgrammerBackend backend,
     required List<DeviceProfile> profiles,
     DeviceCatalog? catalog,
     this.simulationBackend,
-  }) : _backend = backend,
-       _realBackend = backend,
+    Map<String, ProgrammerBackend>? realBackends,
+  }) : _backend = realBackends?[ProgrammerOption.tl866cs.id] ?? backend,
+       _realBackends = Map.unmodifiable({
+         ProgrammerOption.tl866cs.id: backend,
+         ...?realBackends,
+       }),
        profiles = List.unmodifiable(profiles),
        catalog = catalog ?? DeviceCatalog.empty;
 
   static const int maxInputBytes = 64 * 1024 * 1024;
 
   ProgrammerBackend _backend;
-  final ProgrammerBackend _realBackend;
+  final Map<String, ProgrammerBackend> _realBackends;
+  ProgrammerBackend get _realBackend => _realBackends[selectedProgrammer.id]!;
   final ProgrammerBackend? simulationBackend;
   final List<DeviceProfile> profiles;
   DeviceCatalog catalog;
@@ -40,6 +45,7 @@ final class ProgrammerController extends ChangeNotifier {
   DeviceProfile? selectedProfile;
   BinaryImage? inputImage;
   BinaryImage? readoutImage;
+  bool readoutIsPreviousTarget = false;
   ConnectionStatus connectionStatus = ConnectionStatus.disconnected;
   OperationPhase phase = OperationPhase.idle;
   double? progress;
@@ -80,19 +86,26 @@ final class ProgrammerController extends ChangeNotifier {
   String get backendStatus => usingSimulation
       ? 'Simulation backend'
       : connection == null
-      ? 'TL866CS not connected'
-      : 'TL866CS connected (${connection!.identifier})';
+      ? '${selectedProgrammer.label} not connected'
+      : '${selectedProgrammer.label} connected (${connection!.identifier})';
   UiMessage get backendStatusMessage => usingSimulation
       ? const UiMessage(UiMessageId.backendSimulation)
       : connection == null
-      ? const UiMessage(UiMessageId.backendNotConnected)
+      ? UiMessage(UiMessageId.backendNotConnected, {
+          'programmer': selectedProgrammer.label,
+        })
       : UiMessage(UiMessageId.backendConnected, {
           'identifier': connection!.identifier,
+          'programmer': selectedProgrammer.label,
         });
 
-  /// Only TL866CS is selectable in the current release.
-  List<ProgrammerOption> get availableProgrammers => const [
-    ProgrammerOption.tl866cs,
+  List<ProgrammerOption> get availableProgrammers => [
+    for (final option in const [
+      ProgrammerOption.tl866cs,
+      ProgrammerOption.tl866a,
+      ProgrammerOption.tl866iiPlus,
+    ])
+      if (_realBackends.containsKey(option.id)) option,
   ];
   List<String> get availableVendors => catalog.vendorsFor(selectedProgrammer);
   int get selectedVendorDeviceCount => catalog.deviceCount(
@@ -123,22 +136,39 @@ final class ProgrammerController extends ChangeNotifier {
       final replacement = catalog.byId(selected.id);
       selectedDevice = replacement;
       selectedProfile =
-          replacement == null || !catalog.isUnambiguousTl866Alias(replacement)
+          replacement == null ||
+              !catalog.isUnambiguousAlias(
+                replacement,
+                programmer: selectedProgrammer.definition!,
+              )
           ? null
-          : MiniproProfileMapper.fromTl866Catalog(replacement);
+          : MiniproProfileMapper.fromCatalog(
+              device: replacement,
+              programmer: selectedProgrammer.definition!,
+            );
     }
     _safeNotify();
   }
 
   void selectProgrammer(ProgrammerOption programmer) {
-    if (isBusy || needsProgramConfirmation || !programmer.available) return;
+    if (isBusy ||
+        needsProgramConfirmation ||
+        !availableProgrammers.contains(programmer) ||
+        selectedProgrammer == programmer) {
+      return;
+    }
+    if (readoutImage != null) readoutIsPreviousTarget = true;
     selectedProgrammer = programmer;
+    _backend = _realBackend;
+    _invalidateConnectionScan();
+    connectionStatus = ConnectionStatus.disconnected;
+    _resetTransientState();
     selectedVendor = null;
     selectedDevice = null;
     selectedProfile = null;
     _setMessage(
       usingSimulation
-          ? '${programmer.label} database entries are available after switching to TL866CS mode.'
+          ? '${programmer.label} database entries are available after switching to ${programmer.label} mode.'
           : '${programmer.label} database selected for constrained hardware evaluation.',
       UiMessage(UiMessageId.programmerDatabaseSelected, {
         'programmer': programmer.label,
@@ -149,6 +179,9 @@ final class ProgrammerController extends ChangeNotifier {
 
   void selectVendor(String? vendor) {
     if (isBusy || needsProgramConfirmation) return;
+    if (readoutImage != null && selectedVendor != vendor) {
+      readoutIsPreviousTarget = true;
+    }
     selectedVendor = availableVendors.contains(vendor) ? vendor : null;
     selectedDevice = null;
     selectedProfile = null;
@@ -165,14 +198,25 @@ final class ProgrammerController extends ChangeNotifier {
       _safeNotify();
       return;
     }
+    if (readoutImage != null && selectedDevice?.id != device?.id) {
+      readoutIsPreviousTarget = true;
+    }
     selectedDevice = device;
-    selectedProfile = device == null || !catalog.isUnambiguousTl866Alias(device)
+    selectedProfile =
+        device == null ||
+            !catalog.isUnambiguousAlias(
+              device,
+              programmer: selectedProgrammer.definition!,
+            )
         ? null
-        : MiniproProfileMapper.fromTl866Catalog(device);
+        : MiniproProfileMapper.fromCatalog(
+            device: device,
+            programmer: selectedProgrammer.definition!,
+          );
     if (device != null) {
       _setMessage(
         selectedProfile == null
-            ? '${device.label} cannot be represented as a safe raw-BIN TL866CS profile.'
+            ? '${device.label} cannot be represented as a safe raw-BIN ${selectedProgrammer.label} profile.'
             : selectedProfile!.verified
             ? '${device.label} has an empirical validation record.'
             : '${device.label} is authorized for constrained hardware evaluation; it is not empirically validated.',
@@ -221,7 +265,7 @@ final class ProgrammerController extends ChangeNotifier {
     _setMessage(
       usingSimulation
           ? 'Looking for the simulation programmer…'
-          : 'Checking one TL866CS connection…',
+          : 'Checking one ${selectedProgrammer.label} connection…',
       usingSimulation
           ? const UiMessage(UiMessageId.checkingSimulation)
           : const UiMessage(UiMessageId.checkingTl866),
@@ -303,7 +347,7 @@ final class ProgrammerController extends ChangeNotifier {
     selectedProfile = null;
     connectionStatus = ConnectionStatus.disconnected;
     _setMessage(
-      'TL866CS mode selected. Refresh connection status.',
+      '${selectedProgrammer.label} mode selected. Refresh connection status.',
       const UiMessage(UiMessageId.realProgrammerSelected),
     );
     _safeNotify();
@@ -445,7 +489,10 @@ final class ProgrammerController extends ChangeNotifier {
         technicalDetail: result.technicalDetail,
       );
       lastResult = result;
-      if (result.image != null) readoutImage = result.image;
+      if (result.image != null) {
+        readoutImage = result.image;
+        readoutIsPreviousTarget = false;
+      }
       reconnectRequired =
           !usingSimulation &&
           (result.phase == OperationPhase.failed ||
@@ -484,7 +531,7 @@ final class ProgrammerController extends ChangeNotifier {
             final previousUiMessage = uiMessage;
             final previousTechnicalDetail = technicalDetail;
             _setBlocked(
-              '$previousMessage Refresh TL866CS connection before another operation.',
+              '$previousMessage Refresh ${selectedProgrammer.label} connection before another operation.',
               const UiMessage(UiMessageId.reconnectBeforeOperation),
               technicalDetail: previousTechnicalDetail,
             );
@@ -508,8 +555,10 @@ final class ProgrammerController extends ChangeNotifier {
 
   String? _eligibility(OperationKind kind) {
     final profile = selectedProfile;
-    if (!usingSimulation && profile != null && !profile.isTl866Executable) {
-      return 'This database profile is outside the authorized TL866CS evaluation scope.';
+    if (!usingSimulation &&
+        profile != null &&
+        !profile.isExecutableFor(selectedProgrammer.definition!.id)) {
+      return 'This database profile is outside the authorized ${selectedProgrammer.label} evaluation scope.';
     }
     return OperationPolicy.validate(
       kind: kind,
@@ -522,8 +571,12 @@ final class ProgrammerController extends ChangeNotifier {
 
   UiMessage? _eligibilityUi(OperationKind kind) {
     final profile = selectedProfile;
-    if (!usingSimulation && profile != null && !profile.isTl866Executable) {
-      return const UiMessage(UiMessageId.profileOutsideScope);
+    if (!usingSimulation &&
+        profile != null &&
+        !profile.isExecutableFor(selectedProgrammer.definition!.id)) {
+      return UiMessage(UiMessageId.profileOutsideScope, {
+        'programmer': selectedProgrammer.label,
+      });
     }
     return OperationPolicy.validateUiMessage(
       kind: kind,
@@ -540,7 +593,12 @@ final class ProgrammerController extends ChangeNotifier {
     String? technicalDetail,
   }) {
     message = value;
-    uiMessage = semantic;
+    uiMessage = semantic == null
+        ? null
+        : UiMessage(semantic.id, {
+            ...semantic.parameters,
+            'programmer': selectedProgrammer.label,
+          });
     this.technicalDetail = technicalDetail;
   }
 
@@ -550,7 +608,12 @@ final class ProgrammerController extends ChangeNotifier {
     String? technicalDetail,
   }) {
     blockedReason = value;
-    blockedUiMessage = semantic;
+    blockedUiMessage = semantic == null
+        ? null
+        : UiMessage(semantic.id, {
+            ...semantic.parameters,
+            'programmer': selectedProgrammer.label,
+          });
     _setMessage(value ?? '', semantic, technicalDetail: technicalDetail);
   }
 
@@ -577,7 +640,7 @@ final class ProgrammerController extends ChangeNotifier {
   bool _catalogSelectionIsValid(CatalogDevice device) {
     final stored = catalog.byId(device.id);
     return stored != null &&
-        selectedProgrammer.databaseTypes.contains(stored.database) &&
+        catalog.supportsDevice(selectedProgrammer, stored) &&
         stored.vendor == selectedVendor;
   }
 
